@@ -373,24 +373,28 @@ async function start(){
   const rainInt = setInterval(spawnEmoji,400);
 
   // handle stars
-  const stars = document.getElementById("stars");
-  stars.onclick = async function(e){
-    if(e.target.innerText){
-      let idx = stars.innerText.indexOf("☆");
-      if(idx===-1) idx=5;
-      else idx = idx;
-      let n = idx+1;
-      if(n>5) n=5;
-      stars.innerText = "⭐".repeat(n) + "☆".repeat(5-n);
+const stars = document.getElementById("stars");
+stars.addEventListener("click", async (e) => {
 
-      if(n===5){
+    // 点击位置必须是星星字符
+    if (e.target !== stars) return;
+
+    let current = stars.innerText;
+    let count = (current.match(/⭐/g) || []).length;
+
+    // 每次 +1 星，最多 5
+    count = Math.min(count + 1, 5);
+
+    stars.innerText = "⭐".repeat(count) + "☆".repeat(5 - count);
+
+    // 满 5 星跳 thank you 页
+    if (count === 5) {
         clearInterval(rainInt);
         await sleep(600);
-        final.style.display="none";
-        document.getElementById("thankPage").style.display="flex";
-      }
+        final.style.display = "none";
+        document.getElementById("thankPage").style.display = "flex";
     }
-  };
+});
 
 }
 
@@ -400,4 +404,5 @@ window.onload = start;
 
 </body>
 </html>
+
 
