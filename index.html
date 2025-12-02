@@ -1,243 +1,570 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
 <title>Birthday Animation</title>
 <style>
-html, body {
-  margin: 0; padding: 0; overflow: hidden;
-  font-family: sans-serif; height: 100%; width: 100%; background-color: white;
-}
+  :root{
+    --bg: #ffffff;
+    --bubble-bg: rgba(255,255,255,0.95);
+    --bubble-accent: rgba(255,255,200,0.95);
+    --soft-edge: rgba(255,255,255,0.9);
+  }
 
-.screen {
-  display: none; position: absolute; top: 0; left: 0;
-  width: 100%; height: 100%; overflow: hidden;
-}
+  html,body{
+    margin:0; padding:0; height:100%; width:100%; overflow:hidden;
+    background:var(--bg); font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+  }
 
-.center-screen {
-  display: flex; align-items: center; justify-content: center;
-  font-size: 3vh; color: black;
-  height: 100%; width: 100%;
-}
+  /* rotate提示（手机竖屏时显示） */
+  #rotateScreen{
+    position:fixed; inset:0; display:none; align-items:center; justify-content:center;
+    background:var(--bg); color:#111; font-size:3.2vh; z-index:1000;
+  }
 
-#image2Screen img {
-  position:absolute; bottom:0; left:0;
-  max-width:80vw; max-height:80vh;
-  opacity:0; transform: translate(-50%,50%) scale(0.8);
-  transition: all 3s ease;
-}
+  /* -------- 横屏容器（将页面旋转为横屏视觉） --------
+     We rotate the whole wrapper 90deg and adjust width/height.
+     This makes subsequent pages appear in landscape regardless of device orientation.
+  */
+  #landscapeWrapper{
+    display:none;
+    position:fixed; left:0; top:0;
+    width:100vh; height:100vw; /* swapped */
+    transform-origin: left top;
+    transform: rotate(90deg) translateY(-100vh); /* rotate + move into view */
+    background:var(--bg);
+    overflow:hidden;
+  }
 
-.dot {
-  width:2vh; height:2vh; position:absolute; opacity:0; transition:opacity 0.2s ease;
-}
+  /* common screen area inside the rotated wrapper */
+  .screen {
+    position:absolute; inset:0; width:100%; height:100%;
+    overflow:hidden;
+  }
 
-.bubble {
-  position:absolute; opacity:0;
-  background-color: rgba(255,255,0,0.9); color:black;
-  border-radius:1vh; padding:1vh 2vw; font-size:2vh;
-  transform:translateY(2vh); transition: all 0.8s ease;
-}
+  /* -------- image2 with slanted push-in + soft white edge -------- */
+  #image2 {
+    position:absolute;
+    left: -10%; /* start from left-below */
+    bottom: -10%;
+    max-width:180%; max-height:180%;
+    opacity:0;
+    transform: translate(0, 20%) rotate(-25deg) scale(0.9);
+    transition: transform 1.2s cubic-bezier(.2,.9,.2,1), opacity 1.2s ease;
+    filter: drop-shadow(0 10px 30px rgba(0,0,0,0.12));
+    z-index:10;
+  }
 
-#arrowScreen img {
-  position:absolute; right:10%; top:50%; transform:translateY(-50%);
-  max-width:10vw; max-height:10vh; opacity:0; transition:opacity 2s ease;
-}
+  /* soft white vignette around image2 (makes edges look soft) */
+  #image2Soft{
+    position:absolute; inset:0; pointer-events:none; z-index:12;
+    background: radial-gradient(ellipse at center, rgba(255,255,255,0) 55%, rgba(255,255,255,0.85) 100%);
+    opacity:0; transition: opacity 1s ease;
+  }
 
-#image1Screen {
-  background-size:cover; background-position:center; width:100%; height:100%;
-}
+  /* when image2 active */
+  #image2.active {
+    opacity:1;
+    transform: translate(10%, -10%) rotate(-10deg) scale(1);
+  }
+  #image2.active + #image2Soft { opacity:1; }
 
-#finalScreen {
-  background:black; color:white; text-align:center; font-size:4vh;
-}
+  /* -------- loading area -------- */
+  #loadingArea{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    flex-direction:column; z-index:20;
+  }
 
-#stars { margin-top:2vh; font-size:4vh; cursor:pointer; }
-.star { display:inline-block; transition: transform 0.2s ease; }
-.star:hover { transform: scale(1.2); }
+  /* pixel grid container */
+  #loadingGrid{
+    display:flex; align-items:center; gap:20px;
+    justify-content:center; margin-bottom:40px;
+  }
+
+  .letterGrid {
+    display:grid;
+    grid-auto-rows: var(--cell-size, 40px);
+    grid-auto-flow: row;
+    gap:8px;
+  }
+
+  .cell {
+    width: var(--cell-size, 40px);
+    height: var(--cell-size, 40px);
+    opacity:0;
+    transition: opacity 200ms linear;
+  }
+
+  /* make loading larger on big screens */
+  @media (min-width:1200px){
+    :root { --cell-size: 48px; }
+  }
+  @media (max-width:600px){
+    :root { --cell-size: 36px; }
+  }
+
+  /* emojis falling */
+  .emoji {
+    position:absolute; top:-10vh; font-size: 3.5vh; pointer-events:none;
+    animation: fall linear;
+    opacity:0.95;
+    will-change: transform, opacity;
+  }
+  @keyframes fall {
+    0% { transform: translateY(-10vh) rotate(0deg); opacity:1; }
+    100% { transform: translateY(110vh) rotate(360deg); opacity:0; }
+  }
+
+  /* arrow on the right */
+  #arrow {
+    position:absolute; right:4%; top:50%; transform:translateY(-50%);
+    width:12vh; opacity:0; transition: opacity 1s ease; z-index:30;
+    filter: drop-shadow(0 8px 20px rgba(0,0,0,0.15));
+  }
+
+  /* -------- image1 background and bubbles -------- */
+  #image1Screen{
+    position:absolute; inset:0; background-size:cover; background-position:center; z-index:5;
+  }
+
+  /* bubble container positioned at left, vertical stack starting at lower 1/3 */
+  #bubbleArea{
+    position:absolute; left:6%; bottom:18%; display:flex; flex-direction:column; gap:1.2vh; z-index:60;
+    width:60%;
+  }
+
+  .bubble {
+    background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,250,230,0.95));
+    padding: 1.2vh 1.6vw;
+    border-radius: 28px; /* strong roundness */
+    box-shadow: 0 10px 30px rgba(0,0,0,0.12), inset 0 -2px 6px rgba(0,0,0,0.02);
+    font-size: 2.2vh;
+    color: #111;
+    opacity:0;
+    transform: translateX(-26px);
+    transition: all 900ms cubic-bezier(.2,.9,.2,1);
+    max-width:100%;
+    word-break: break-word;
+  }
+
+  /* final black rating page */
+  #finalPage {
+    position:absolute; inset:0; background:#000; color:#fff;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    z-index:200; opacity:0; transition: opacity 600ms ease;
+  }
+  #finalPage.show { opacity:1; }
+
+  #ratingStars { font-size: 6vh; letter-spacing:8px; cursor:pointer; user-select:none; margin-top:2vh; }
+
+  /* responsive text sizing tweaks */
+  @media (max-width:480px){
+    .bubble { font-size: 3.6vw; border-radius: 18px; }
+    #arrow { width: 18vw; }
+    #ratingStars{ font-size: 10vw; }
+  }
 
 </style>
 </head>
 <body>
 
-<div id="rotateScreen" class="screen center-screen">please rotate your phone📱</div>
+<!-- 手机竖屏提示 -->
+<div id="rotateScreen">please rotate your phone📱</div>
 
-<div id="image2Screen" class="screen">
-  <img src="image2.jpg" id="image2">
-</div>
+<!-- 横屏包装器：所有后续内容放在这里以强制横屏显示 -->
+<div id="landscapeWrapper" aria-hidden="true">
 
-<div id="loadingScreen" class="screen"></div>
-
-<div id="arrowScreen" class="screen">
-  <img src="image3.png" id="arrow">
-</div>
-
-<div id="image1Screen" class="screen"></div>
-
-<div id="finalScreen" class="screen">
-  <div id="finalText" style="margin-top:40%;">xD</div>
-  <div style="font-size:2.5vh;margin-top:2vh;">please rate</div>
-  <div id="stars">
-    <span class="star" data-index="1">☆</span>
-    <span class="star" data-index="2">☆</span>
-    <span class="star" data-index="3">☆</span>
-    <span class="star" data-index="4">☆</span>
-    <span class="star" data-index="5">☆</span>
+  <!-- image2 stage -->
+  <div id="stageImage2" class="screen">
+    < img id="image2" src="image2.jpg" alt="image2">
+    <div id="image2Soft"></div>
   </div>
+
+  <!-- loading stage (initially hidden) -->
+  <div id="loadingArea" class="screen" style="display:none;">
+    <div id="loadingGrid" role="img" aria-label="loading pixel grid"></div>
+  </div>
+
+  <!-- arrow -->
+  < img id="arrow" src="image3.png" alt="arrow" style="display:none;">
+
+  <!-- image1 stage with bubbles -->
+  <div id="image1Screen" class="screen" style="display:none;"></div>
+  <div id="bubbleArea" style="display:none;"></div>
+
+  <!-- final page -->
+  <div id="finalPage" style="display:none;">
+    <div id="finalXD" style="font-size:10vh;">xD</div>
+    <div style="margin-top:1vh; font-size:3.5vh;">please rate</div>
+    <div id="ratingStars">☆ ☆ ☆ ☆ ☆</div>
+  </div>
+
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded',()=>{
-  // 初始化隐藏所有 screen
-  document.querySelectorAll('.screen').forEach(el=>el.style.display='none');
+/* ========== Utility & Config ========== */
+const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+const vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
 
-  const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+/* Pixel-letter templates (方案 A - coarse blocks)
+   Each letter is an array of rows; 1 = filled cell, 0 = empty.
+   These are blocky 5x5-ish templates optimized for clarity.
+*/
+const LETTERS = {
+  L: [
+    [1,0,0],
+    [1,0,0],
+    [1,0,0],
+    [1,1,1],
+    [0,0,0]
+  ],
+  O: [
+    [0,1,0],
+    [1,0,1],
+    [1,0,1],
+    [0,1,0],
+    [0,0,0]
+  ],
+  A: [
+    [0,1,0],
+    [1,0,1],
+    [1,1,1],
+    [1,0,1],
+    [0,0,0]
+  ],
+  D: [
+    [1,1,0],
+    [1,0,1],
+    [1,0,1],
+    [1,1,0],
+    [0,0,0]
+  ],
+  I: [
+    [1],
+    [1],
+    [1],
+    [1],
+    [0]
+  ],
+  N: [
+    [1,0,1],
+    [1,1,1],
+    [1,0,1],
+    [1,0,1],
+    [0,0,0]
+  ],
+  G: [
+    [0,1,1],
+    [1,0,0],
+    [1,0,1],
+    [0,1,1],
+    [0,0,0]
+  ],
+  // single dot
+  '.': [
+    [1]
+  ]
+}
 
-  if(isMobile){
-    document.getElementById('rotateScreen').style.display='flex';
-    setTimeout(()=>{
-      document.getElementById('rotateScreen').style.display='none';
-      showImage2();
-    },3000);
+  /* Sequence for LOADING... repeated twice
+   We will render letters one-by-one left-to-right, each letter is a grid of cells.
+*/
+const LOADING_SEQUENCE = ['L','O','A','D','I','N','G','.','.','.','L','O','A','D','I','N','G','.','.','.'];
+
+/* timing config (ms) */
+const IMAGE2_STAY_MS = 9000;   // image2 stays 9s
+const CELL_DELAY_MS = 120;     // per-cell illumination
+const BETWEEN_LETTER_MS = 80;  // small gap between letters
+const EMOJI_SPAWN_INTERVAL = 350; // ms between falling emojis spawned
+const ARROW_SHOW_MS = 2000;    // arrow visible 2s then hide
+const BUBBLE_INTERVAL_MS = 5000; // each bubble generation pause 5s
+const FINAL_HOLD_MS = 8000;    // last bubble final hold 8s
+
+/* elements */
+const rotateScreen = document.getElementById('rotateScreen');
+const landscapeWrapper = document.getElementById('landscapeWrapper');
+const image2 = document.getElementById('image2');
+const image2Soft = document.getElementById('image2Soft');
+const loadingArea = document.getElementById('loadingArea');
+const loadingGrid = document.getElementById('loadingGrid');
+const arrowEl = document.getElementById('arrow');
+const image1Screen = document.getElementById('image1Screen');
+const bubbleArea = document.getElementById('bubbleArea');
+const finalPage = document.getElementById('finalPage');
+const ratingStars = document.getElementById('ratingStars');
+
+/* ensure landscape wrapper size for various viewports */
+function sizeLandscapeWrapper(){
+  // wrapper is rotated: set width/height using viewport swapped
+  const w = window.innerWidth, h = window.innerHeight;
+  // the CSS uses width:100vh; height:100vw; rotation handles it.
+  // nothing special needed here other than responsive cell sizing (handled in CSS).
+}
+sizeLandscapeWrapper();
+window.addEventListener('resize', sizeLandscapeWrapper);
+
+/* ========== Flow Control ========== */
+// entry on DOM ready
+document.addEventListener('DOMContentLoaded', ()=> {
+  // initial state: show rotate for mobile portrait
+  const portraitMobile = isMobile && (window.innerHeight > window.innerWidth);
+  if(portraitMobile){
+    rotateScreen.style.display = 'flex';
+    // show rotate for 3s then go to landscape flow
+    setTimeout(()=> {
+      rotateScreen.style.display='none';
+      startLandscapeFlow();
+    }, 3000);
   } else {
-    showImage2();
+    // desktop or already landscape mobile -> start immediately
+    startLandscapeFlow();
   }
 });
 
-// Step 2: image2
-function showImage2(){
-  const screen = document.getElementById('image2Screen');
-  const img = document.getElementById('image2');
-  screen.style.display='block';
-  if(img.complete){
-    startImage2Animation();
+/* Start the horizontal (landscape) wrapped flow */
+function startLandscapeFlow(){
+  landscapeWrapper.style.display = 'block';
+  // Stage 1: image2 slanted push-in
+  playImage2Stage();
+}
+
+/* ========== Stage 1: image2 slanted push-in (9s) ========== */
+function playImage2Stage(){
+  // ensure image loaded, then animate
+  if(image2.complete){
+    activateImage2();
   } else {
-    img.onload=startImage2Animation;
+    image2.onload = activateImage2;
   }
 
-  function startImage2Animation(){
+  function activateImage2(){
+    // small delay to ensure paint
     requestAnimationFrame(()=>{
-      img.style.opacity=1;
-      img.style.transform='translate(0,0) scale(1)';
+      image2.classList.add('active'); // toggles CSS transform to final state
+      // also show soft vignette
+      image2Soft.style.opacity = 1;
     });
-    setTimeout(showLoadingScreen,5000);
+
+    // after IMAGE2_STAY_MS, move to loading
+    setTimeout(()=> {
+      // hide image2 cleanly
+      image2.classList.remove('active');
+      image2Soft.style.opacity = 0;
+      // small fade out delay before showing loading
+      setTimeout(()=> {
+        image2.style.display = 'none';
+        showLoadingStage();
+      }, 600);
+    }, IMAGE2_STAY_MS);
   }
 }
 
-// Step 3: LOADING 点阵
-function showLoadingScreen(){
-  document.getElementById('image2Screen').style.display='none';
-  const screen = document.getElementById('loadingScreen');
-  screen.style.display='block';
+/* ========== Stage 2: Loading pixel grid with emoji falling ========== */
+let emojiTimer = null;
+function showLoadingStage(){
+  loadingArea.style.display = 'flex';
+  loadingGrid.innerHTML = '';
+  arrowEl.style.display = 'none';
+  // build letter grids (but we will reveal cells sequentially)
+  const cellSize = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--cell-size')) || 40;
+  const gap = 8;
 
-  const letters = {
-    L:[[1,0,0],[1,0,0],[1,0,0],[1,1,1]],
-    O:[[0,1,0],[1,0,1],[1,0,1],[0,1,0]],
-    A:[[0,1,0],[1,0,1],[1,1,1],[1,0,1]],
-    D:[[1,1,0],[1,0,1],[1,0,1],[1,1,0]],
-    I:[[1],[1],[1],[1]],
-    N:[[1,0,1],[1,1,1],[1,0,1],[1,0,1]],
-    G:[[0,1,1],[1,0,0],[1,0,1],[0,1,1]],
-    '.':[[1]]
-  };
-
-  const text = "LOADING...";
-  const dotSize = Math.min(window.innerWidth, window.innerHeight)*0.03;
-  const spacing = dotSize*0.2;
-  let xOffset = window.innerWidth*0.05;
-  const yOffset = window.innerHeight*0.3;
-
-  let allDots=[];
-
-  text.split('').forEach(char=>{
-    const template=letters[char.toUpperCase()];
-    if(!template) return;
-    const rows=template.length, cols=template[0].length;
-    const scale=Math.min((window.innerWidth*0.9)/(cols*dotSize),1);
-    template.forEach((row,rowIndex)=>{
-      row.forEach((cell,colIndex)=>{
-        if(cell){
-          const dot = document.createElement('img');
-          dot.src="image4.png"; dot.className='dot';
-          dot.style.width = (dotSize*scale)+'px';
-          dot.style.height = (dotSize*scale)+'px';
-          dot.style.left = (xOffset + colIndex*(dotSize*scale+spacing))+'px';
-          dot.style.top = (yOffset + rowIndex*(dotSize*scale+spacing))+'px';
-          screen.appendChild(dot);
-          allDots.push(dot);
+  // create grid container for each letter in LOADING_SEQUENCE
+  const letterContainers = [];
+  LOADING_SEQUENCE.forEach((char, idx) => {
+    const template = LETTERS[char] || LETTERS['.'];
+    // compute columns using template[0].length
+    const cols = template[0].length;
+    const rows = template.length;
+    const cont = document.createElement('div');
+    cont.className = 'letterGrid';
+    cont.style.setProperty('--cell-size', cellSize + 'px');
+    cont.style.gridTemplateColumns = `repeat(${cols}, ${cellSize}px)`;
+    // create cells per template
+    for(let r=0;r<rows;r++){
+      for(let c=0;c<cols;c++){
+        const cell = document.createElement('img');
+        cell.className = 'cell';
+        // only filled cells will show image4; empty cells still occupy space but invisible
+        if(template[r] && template[r][c] === 1){
+          cell.src = 'image4.png';
+          cell.alt = '';
+        } else {
+          // transparent placeholder (empty)
+          cell.style.visibility = 'hidden';
         }
-      });
-    });
-    xOffset += cols*(dotSize+spacing) + dotSize;
+        cont.appendChild(cell);
+      }
+    }
+    loadingGrid.appendChild(cont);
+    letterContainers.push(cont);
   });
 
-  let idx=0, repeat=0;
-  const interval=setInterval(()=>{
-    if(idx<allDots.length){ allDots[idx].style.opacity=1; idx++; }
-    else{ repeat++; if(repeat<2){ idx=0; allDots.forEach(d=>d.style.opacity=0); } else{ clearInterval(interval); showArrowScreen(); } }
-  },200);
-}
+  /* sequentially illuminate cells top-to-bottom left-to-right across letters */
+  const allCells = [];
+  letterContainers.forEach(cont => {
+    const cells = Array.from(cont.children);
+    // keep only visible cells
+    cells.forEach(cell => {
+      if(cell.style.visibility !== 'hidden') allCells.push(cell);
+    });
+  });
 
-// Step 4: arrow
-function showArrowScreen(){
-  document.getElementById('loadingScreen').style.display='none';
-  const screen = document.getElementById('arrowScreen');
-  const arrow = document.getElementById('arrow');
-  screen.style.display='block';
-  requestAnimationFrame(()=>{ arrow.style.opacity=1; });
-  setTimeout(()=>{ arrow.style.opacity=0; setTimeout(showImage1Screen,2000); },2000);
-}
-
-// Step 5: image1 + birthday
-function showImage1Screen(){
-  document.getElementById('arrowScreen').style.display='none';
-  const screen = document.getElementById('image1Screen');
-  screen.style.display='block';
-  screen.style.backgroundImage='url("image1.jpg")';
-
-  const texts=[
-    "Heyyy Ahmed, happy birthday to you!🥳",
-    "If I could give you something today, it would be a quiet moment where nothing hurts and presses you",
-    "I see how much you’re carrying, and I respect you for that!",
-    "I hope this year brings you more ease so that you can breathe. 🫂",
-    "Remember! You can always be yourself with me! Lots of love!🥰"
-  ];
-
-  let index=0;
-  function showNext(){
-    if(index<texts.length){
-      const div = document.createElement('div');
-      div.className='bubble';
-      div.textContent=texts[index];
-      div.style.left='10%';
-      div.style.bottom=(20+index*12)+'%';
-      screen.appendChild(div);
-      requestAnimationFrame(()=>{ div.style.opacity=1; div.style.transform='translateY(0)'; });
-      index++; setTimeout(showNext,800);
-    } else { setTimeout(showFinalScreen,3000); }
+  // reveal cells in order with CELL_DELAY_MS spacing
+  let idx = 0;
+  function revealNext(){
+    if(idx < allCells.length){
+      allCells[idx].style.opacity = '1';
+      idx++;
+      setTimeout(revealNext, CELL_DELAY_MS);
+    } else {
+      // Completed one full pass (this full LOADING_SEQUENCE includes LOADING... twice)
+      // Keep loading static for a moment then show arrow
+      // spawn emojis continuously while loading visible
+      startEmojis();
+      setTimeout(()=> {
+        // After a short pause show arrow
+        showArrowThenProceed();
+      }, 800);
+    }
   }
-  showNext();
+
+  // Start reveal
+  revealNext();
 }
 
-// Step 6: final screen
-function showFinalScreen(){
-  document.getElementById('image1Screen').style.display='none';
-  const screen = document.getElementById('finalScreen');
-  screen.style.display='block';
-  const stars = document.querySelectorAll('.star');
-  stars.forEach(star=>{
-    star.addEventListener('click', ()=>{
-      const index = parseInt(star.dataset.index);
-      stars.forEach((s,i)=>s.textContent=i<index?'⭐':'☆');
-      setTimeout(()=>{ screen.innerHTML=`<div style="color:white;text-align:center;margin-top:40%;">
-      thanks for your 5 star<br>
-      （knew you would do this xD love you looots<br><br>
-      jingjingjing6<br>
-      https://github.com/jingjingjing6/Hbd2aa10</div>`; },500);
-    });
-  });
+/* spawn falling emojis while loading visible */
+function startEmojis(){
+  const emojis = ['🎂','🧁','⭐','💛'];
+  // spawn frequently but remove each after its animation duration
+  emojiTimer = setInterval(() => {
+    const e = document.createElement('div');
+    e.className = 'emoji';
+    e.innerText = emojis[Math.floor(Math.random()*emojis.length)];
+    // horizontal start position - wide range
+    const left = Math.random()*80 + 5; // 5% - 85%
+    e.style.left = left + 'vw';
+    // duration variance
+    const dur = 3000 + Math.random()*2200; // 3s - 5.2s
+    e.style.animationDuration = dur + 'ms';
+    landscapeWrapper.appendChild(e);
+    // remove after duration + small buffer
+    setTimeout(()=> {
+      try{ e.remove(); }catch(e){}
+    }, dur + 200);
+  }, EMOJI_SPAWN_INTERVAL);
 }
+
+/* stop emojis */
+function stopEmojis(){
+  if(emojiTimer) { clearInterval(emojiTimer); emojiTimer = null; }
+  // remove remaining emoji nodes
+  const nodes = Array.from(landscapeWrapper.querySelectorAll('.emoji'));
+  nodes.forEach(n=>n.remove());
+}
+
+/* show arrow, then hide and proceed to bubbles */
+function showArrowThenProceed(){
+  // reveal arrow
+  arrowEl.style.display = 'block';
+  requestAnimationFrame(()=> arrowEl.style.opacity = '1');
+
+  // after ARROW_SHOW_MS hide arrow, stop emojis, and proceed to bubbles
+  setTimeout(()=> {
+    arrowEl.style.opacity = '0';
+    stopEmojis();
+    setTimeout(() => {
+      loadingArea.style.display = 'none';
+      arrowEl.style.display = 'none';
+      // proceed to image1 + bubbles
+      startImage1AndBubbles();
+    }, 800);
+  }, ARROW_SHOW_MS);
+}
+
+/* ========== Stage 3: Image1 as background + bubble messages ========== */
+const BUBBLES = [
+  "Heyyy Ahmed, happy birthday to you!🥳",
+  "If I could give you something today, it would be a quiet moment where nothing hurts and presses you",
+  "I see how much you’re carrying, and I respect you for that!",
+  "I hope this year brings you more ease so that you can breathe. 🫂",
+  "Remember! You can always be yourself with me! Lots of love!🥰"
+];
+
+function startImage1AndBubbles(){
+  // show image1 as background
+  image1Screen.style.display = 'block';
+  image1Screen.style.backgroundImage = 'url("image1.jpg")';
+
+  // show bubble container
+  bubbleArea.style.display = 'flex';
+  bubbleArea.innerHTML = '';
+
+  // sequentially add bubbles; each bubble appears and stays in place
+  let i = 0;
+  function next(){
+    if(i >= BUBBLES.length){
+      // last bubble shown, wait FINAL_HOLD_MS then show final screen
+      setTimeout(()=> {
+        showFinal();
+      }, FINAL_HOLD_MS);
+      return;
+    }
+    const div = document.createElement('div');
+    div.className = 'bubble';
+    div.innerText = BUBBLES[i];
+    // append and animate in
+    bubbleArea.appendChild(div);
+    // small delay to allow appended element to be painted
+    requestAnimationFrame(()=> {
+      div.style.opacity = '1';
+      div.style.transform = 'translateX(0)';
+    });
+    i++;
+    // wait BUBBLE_INTERVAL_MS before next bubble
+    setTimeout(next, BUBBLE_INTERVAL_MS);
+  }
+  next();
+}
+
+/* ========== Stage 4: Final rating page ========== */
+function showFinal(){
+  // hide image1 and bubble area visually (we can keep in DOM)
+  image1Screen.style.display = 'none';
+  bubbleArea.style.display = 'none';
+  // show final page
+  finalPage.style.display = 'flex';
+  setTimeout(()=> finalPage.classList.add('show'), 60);
+
+  // rating star logic
+  ratingStars.addEventListener('click', handleStarClick);
+}
+
+/* star click: fill stars and show final thank you content when 5 selected */
+function handleStarClick(e){
+  // We interpret a click as 5-star (the UI is simple: single click => 5 stars)
+  ratingStars.innerText = '⭐ ⭐ ⭐ ⭐ ⭐';
+
+  // after small delay show thanks page text (replace content in rotated wrapper)
+  setTimeout(()=> {
+    // replace landscapeWrapper content with final thanks (no rotation necessary)
+    document.documentElement.style.background = '#000';
+    landscapeWrapper.innerHTML = `
+      <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column;color:white;">
+        <div style="font-size:4.2vh;text-align:center;">thanks for your 5 star</div>
+        <div style="font-size:2.6vh;margin-top:1.2vh;text-align:center;">(knew you would do this xD love you looots)</div>
+        <div style="margin-top:2vh;font-size:2.6vh;text-align:center;">jingjingjing6</div>
+        <div style="margin-top:1vh;font-size:2.2vh;text-align:center;">https://github.com/jingjingjing6/Hbd2aa10</div>
+      </div>
+    `;
+  }, 600);
+}
+
+/* ========== End of script ========== */
+
 </script>
 </body>
-
 </html>
