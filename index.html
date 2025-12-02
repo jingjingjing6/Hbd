@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Birthday Animation</title>
+<style>
+html, body {
+  margin: 0; padding: 0; overflow: hidden;
+  font-family: sans-serif; height: 100%; width: 100%; background-color: white;
+}
+
+.screen {
+  display: none; position: absolute; top: 0; left: 0;
+  width: 100%; height: 100%; overflow: hidden;
+}
+
+.center-screen {
+  display: flex; align-items: center; justify-content: center;
+  font-size: 3vh; color: black;
+  height: 100%; width: 100%;
+}
+
+#image2Screen img {
+  position:absolute; bottom:0; left:0;
+  max-width:80vw; max-height:80vh;
+  opacity:0; transform: translate(-50%,50%) scale(0.8);
+  transition: all 3s ease;
+}
+
+.dot {
+  width:2vh; height:2vh; position:absolute; opacity:0; transition:opacity 0.2s ease;
+}
+
+.bubble {
+  position:absolute; opacity:0;
+  background-color: rgba(255,255,0,0.9); color:black;
+  border-radius:1vh; padding:1vh 2vw; font-size:2vh;
+  transform:translateY(2vh); transition: all 0.8s ease;
+}
+
+#arrowScreen img {
+  position:absolute; right:10%; top:50%; transform:translateY(-50%);
+  max-width:10vw; max-height:10vh; opacity:0; transition:opacity 2s ease;
+}
+
+#image1Screen {
+  background-size:cover; background-position:center; width:100%; height:100%;
+}
+
+#finalScreen {
+  background:black; color:white; text-align:center; font-size:4vh;
+}
+
+#stars { margin-top:2vh; font-size:4vh; cursor:pointer; }
+.star { display:inline-block; transition: transform 0.2s ease; }
+.star:hover { transform: scale(1.2); }
+
+</style>
+</head>
+<body>
+
+<div id="rotateScreen" class="screen center-screen">please rotate your phone📱</div>
+
+<div id="image2Screen" class="screen">
+  < img src="image2.jpg" id="image2">
+</div>
+
+<div id="loadingScreen" class="screen"></div>
+
+<div id="arrowScreen" class="screen">
+  < img src="image3.png" id="arrow">
+</div>
+
+<div id="image1Screen" class="screen"></div>
+
+<div id="finalScreen" class="screen">
+  <div id="finalText" style="margin-top:40%;">xD</div>
+  <div style="font-size:2.5vh;margin-top:2vh;">please rate</div>
+  <div id="stars">
+    <span class="star" data-index="1">☆</span>
+    <span class="star" data-index="2">☆</span>
+    <span class="star" data-index="3">☆</span>
+    <span class="star" data-index="4">☆</span>
+    <span class="star" data-index="5">☆</span>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded',()=>{
+  // 初始化隐藏所有 screen
+  document.querySelectorAll('.screen').forEach(el=>el.style.display='none');
+
+  const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+
+  if(isMobile){
+    document.getElementById('rotateScreen').style.display='flex';
+    setTimeout(()=>{
+      document.getElementById('rotateScreen').style.display='none';
+      showImage2();
+    },3000);
+  } else {
+    showImage2();
+  }
+});
+
+// Step 2: image2
+function showImage2(){
+  const screen = document.getElementById('image2Screen');
+  const img = document.getElementById('image2');
+  screen.style.display='block';
+  if(img.complete){
+    startImage2Animation();
+  } else {
+    img.onload=startImage2Animation;
+  }
+
+  function startImage2Animation(){
+    requestAnimationFrame(()=>{
+      img.style.opacity=1;
+      img.style.transform='translate(0,0) scale(1)';
+    });
+    setTimeout(showLoadingScreen,5000);
+  }
+}
+
+// Step 3: LOADING 点阵
+function showLoadingScreen(){
+  document.getElementById('image2Screen').style.display='none';
+  const screen = document.getElementById('loadingScreen');
+  screen.style.display='block';
+
+  const letters = {
+    L:[[1,0,0],[1,0,0],[1,0,0],[1,1,1]],
+    O:[[0,1,0],[1,0,1],[1,0,1],[0,1,0]],
+    A:[[0,1,0],[1,0,1],[1,1,1],[1,0,1]],
+    D:[[1,1,0],[1,0,1],[1,0,1],[1,1,0]],
+    I:[[1],[1],[1],[1]],
+    N:[[1,0,1],[1,1,1],[1,0,1],[1,0,1]],
+    G:[[0,1,1],[1,0,0],[1,0,1],[0,1,1]],
+    '.':[[1]]
+  };
+
+  const text = "LOADING...";
+  const dotSize = Math.min(window.innerWidth, window.innerHeight)*0.03;
+  const spacing = dotSize*0.2;
+  let xOffset = window.innerWidth*0.05;
+  const yOffset = window.innerHeight*0.3;
+
+  let allDots=[];
+
+  text.split('').forEach(char=>{
+    const template=letters[char.toUpperCase()];
+    if(!template) return;
+    const rows=template.length, cols=template[0].length;
+    const scale=Math.min((window.innerWidth*0.9)/(cols*dotSize),1);
+    template.forEach((row,rowIndex)=>{
+      row.forEach((cell,colIndex)=>{
+        if(cell){
+          const dot = document.createElement('img');
+          dot.src="image4.png"; dot.className='dot';
+          dot.style.width = (dotSize*scale)+'px';
+          dot.style.height = (dotSize*scale)+'px';
+          dot.style.left = (xOffset + colIndex*(dotSize*scale+spacing))+'px';
+          dot.style.top = (yOffset + rowIndex*(dotSize*scale+spacing))+'px';
+          screen.appendChild(dot);
+          allDots.push(dot);
+        }
+      });
+    });
+    xOffset += cols*(dotSize+spacing) + dotSize;
+  });
+
+  let idx=0, repeat=0;
+  const interval=setInterval(()=>{
+    if(idx<allDots.length){ allDots[idx].style.opacity=1; idx++; }
+    else{ repeat++; if(repeat<2){ idx=0; allDots.forEach(d=>d.style.opacity=0); } else{ clearInterval(interval); showArrowScreen(); } }
+  },200);
+}
+
+// Step 4: arrow
+function showArrowScreen(){
+  document.getElementById('loadingScreen').style.display='none';
+  const screen = document.getElementById('arrowScreen');
+  const arrow = document.getElementById('arrow');
+  screen.style.display='block';
+  requestAnimationFrame(()=>{ arrow.style.opacity=1; });
+  setTimeout(()=>{ arrow.style.opacity=0; setTimeout(showImage1Screen,2000); },2000);
+}
+
+// Step 5: image1 + birthday
+function showImage1Screen(){
+  document.getElementById('arrowScreen').style.display='none';
+  const screen = document.getElementById('image1Screen');
+  screen.style.display='block';
+  screen.style.backgroundImage='url("image1.jpg")';
+
+  const texts=[
+    "Heyyy Ahmed, happy birthday to you!🥳",
+    "If I could give you something today, it would be a quiet moment where nothing hurts and presses you",
+    "I see how much you’re carrying, and I respect you for that!",
+    "I hope this year brings you more ease so that you can breathe. 🫂",
+    "Remember! You can always be yourself with me! Lots of love!🥰"
+  ];
+
+  let index=0;
+  function showNext(){
+    if(index<texts.length){
+      const div = document.createElement('div');
+      div.className='bubble';
+      div.textContent=texts[index];
+      div.style.left='10%';
+      div.style.bottom=(20+index*12)+'%';
+      screen.appendChild(div);
+      requestAnimationFrame(()=>{ div.style.opacity=1; div.style.transform='translateY(0)'; });
+      index++; setTimeout(showNext,800);
+    } else { setTimeout(showFinalScreen,3000); }
+  }
+  showNext();
+}
+
+// Step 6: final screen
+function showFinalScreen(){
+  document.getElementById('image1Screen').style.display='none';
+  const screen = document.getElementById('finalScreen');
+  screen.style.display='block';
+  const stars = document.querySelectorAll('.star');
+  stars.forEach(star=>{
+    star.addEventListener('click', ()=>{
+      const index = parseInt(star.dataset.index);
+      stars.forEach((s,i)=>s.textContent=i<index?'⭐':'☆');
+      setTimeout(()=>{ screen.innerHTML=`<div style="color:white;text-align:center;margin-top:40%;">
+      thanks for your 5 star<br>
+      （knew you would do this xD love you looots<br><br>
+      jingjingjing6<br>
+      https://github.com/jingjingjing6/Hbd2aa10</div>`; },500);
+    });
+  });
+}
+</script>
+</body>
+</html>
