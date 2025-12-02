@@ -1,509 +1,709 @@
-<!doctype html>
-<html lang="zh-CN">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>Birthday Animation - Vertical Mode</title>
-<style>
-  :root {
-    --bg: white;
-    --text: #000;
-    --bubble-bg: #ffffff;
-    --bubble-bg-alt: #fff7a8;
-    --bubble-color: #000;
-  }
-  html, body {
-    margin: 0; padding: 0; height: 100%;
-    background: #111;
-    font-family: -apple-system, "Helvetica Neue", Arial, "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft Yahei", sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    overflow: hidden;
-    color: var(--text);
-  }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Happy Birthday Ahmed!</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
 
-  /* 首页文本容器，竖屏中间居中 */
-  #homeScreen {
-    height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: white;
-    color: black;
-    font-weight: 800;
-    font-size: 48px;
-    user-select: none;
-    overflow: visible;
-    position: relative;
-  }
+        body {
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            background-color: #000;
+            color: #333;
+        }
 
-  #loadingCanvas {
-    position: relative;
-    width: 90vw;
-    height: 40vh;
-    max-width: 380px;
-    max-height: 180px;
-    margin: 0 auto;
-    overflow: visible;
-  }
+        /* 通用页面容器 */
+        .page {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            overflow: hidden;
+        }
 
-  /* 点阵块tile，大小固定，不重叠 */
-  .pixel {
-    position: absolute;
-    width: 26px;
-    height: 26px;
-    background-image: url('image4.png');
-    background-size: contain;
-    background-repeat: no-repeat;
-    opacity: 0;
-    transform: translateY(-6px);
-    transition: opacity 0.18s linear, transform 0.18s ease;
-    pointer-events: none;
-  }
+        /* 第1页：旋转提示 */
+        #rotate-page {
+            display: flex;
+            background-color: white;
+            text-align: center;
+            z-index: 1000;
+        }
 
-  /* 主舞台，后续动画区域 */
-  #stage {
-    display: none;
-    height: 100vh;
-    background: white;
-    position: relative;
-    overflow: hidden;
-    color: var(--text);
-  }
+        #rotate-page .rotate-message {
+            font-size: 24px;
+            font-weight: bold;
+            padding: 20px;
+        }
 
-  /* image2容器，背景白色，图片不拉伸，居中 */
-  #image2Wrap {
-    background: white;
-    position: relative;
-    width: 100%;
-    height: 50vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-  #image2 {
-    max-width: 90%;
-    max-height: 100%;
-    object-fit: none;
-  }
+        /* 横屏样式 - 从第2页开始都是横屏 */
+        .landscape-page {
+            display: none;
+            width: 100vh;
+            height: 100vw;
+            transform: rotate(90deg);
+            transform-origin: left top;
+            position: absolute;
+            top: 0;
+            left: 100vw;
+        }
 
-  /* image3背景白色，图片自然大小，居中 */
-  #image3Wrap {
-    background: white;
-    position: relative;
-    height: 40vh;
-    width: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-  #image3 {
-    max-height: 100%;
-    max-width: 90%;
-    object-fit: none;
-    opacity: 0;
-    transition: opacity 0.8s ease-in-out;
-    pointer-events: none;
-  }
+        /* 第2页：图片展示 */
+        #image2-page {
+            background-color: white;
+        }
 
-  /* image1背景全屏，滑入动画 */
-  #image1bg {
-    position: absolute;
-    inset: 0;
-    background-image: url('image1.jpg');
-    background-position: center;
-    background-repeat: no-repeat;
-    background-size: contain;
-    transform: translateX(100%);
-    transition: transform 1.6s ease-in-out;
-    z-index: 1;
-  }
+        .image-container {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            height: 100%;
+        }
 
-  /* 气泡容器和气泡样式 */
-  #bubbles {
-    position: absolute;
-    left: 5%;
-    bottom: 33%;
-    width: 60%;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    z-index: 5;
-    pointer-events: none;
-  }
-  .bubble {
-    max-width: 100%;
-    display: inline-block;
-    padding: 12px 14px;
-    border-radius: 18px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
-    opacity: 0;
-    transform: translateY(8px);
-    transition: opacity 0.6s ease, transform 0.6s ease;
-    word-break: break-word;
-    font-size: 15px;
-    line-height: 1.4;
-  }
-  .bubble.show {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  .bubble.white {
-    background: var(--bubble-bg);
-    color: var(--bubble-color);
-  }
-  .bubble.yellow {
-    background: var(--bubble-bg-alt);
-    color: var(--bubble-color);
-  }
+        #image2 {
+            max-width: 80%;
+            max-height: 80%;
+            object-fit: contain;
+            opacity: 0;
+            transform: translate(-20%, 20%);
+        }
 
-  /* 最终xD评分屏幕 */
-  #finalXDScreen {
-    background: #000;
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    gap: 14px;
-    font-size: 48px;
-    z-index: 9;
-    height: 100vh;
-    user-select: none;
-  }
-  #pleaseRate {
-    font-size: 18px;
-    margin-top: 6px;
-    display: none;
-  }
-  #stars {
-    font-size: 34px;
-    letter-spacing: 6px;
-    cursor: pointer;
-    user-select: none;
-    display: none;
-  }
-  .star {
-    display: inline-block;
-    transition: transform 0.12s ease;
-  }
-  .star:hover {
-    transform: translateY(-4px);
-  }
+        /* 第3页：加载动画 */
+        #loading-page {
+            background-color: white;
+        }
 
-  /* 感谢页面 */
-  #thanksPage {
-    background: #000;
-    color: #fff;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 20px;
-    box-sizing: border-box;
-    font-size: 20px;
-    line-height: 1.4;
-    height: 100vh;
-    user-select: none;
-  }
+        .loading-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
 
-  /* emoji 下落效果 */
-  .emoji-fall {
-    position: absolute;
-    top: -40px;
-    font-size: 22px;
-    pointer-events: none;
-    animation-name: fall;
-    animation-timing-function: linear;
-    animation-iteration-count: infinite;
-  }
-  @keyframes fall {
-    to {
-      transform: translateY(720px) rotate(360deg);
-      opacity: 0.05;
-    }
-  }
+        .loading-text {
+            position: relative;
+            font-size: 60px;
+            font-weight: bold;
+            color: transparent;
+            letter-spacing: 10px;
+        }
 
-  @media (max-width: 420px) {
-    .pixel {
-      width: 20px;
-      height: 20px;
-    }
-    #homeScreen {
-      font-size: 36px;
-    }
-    #finalXDScreen {
-      font-size: 38px;
-    }
-    #stars {
-      font-size: 26px;
-    }
-  }
-</style>
+        .loading-dot {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            opacity: 0;
+            background-image: url('https://cdn-icons-png.flaticon.com/512/3135/3135715.png');
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+
+        /* 第4页：箭头显示 */
+        #arrow-page {
+            background-color: white;
+        }
+
+        #arrow {
+            position: absolute;
+            right: 10%;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 80px;
+            height: 80px;
+            opacity: 0;
+            background-image: url('https://cdn-icons-png.flaticon.com/512/271/271228.png');
+            background-size: contain;
+            background-repeat: no-repeat;
+        }
+
+        /* 第5页：生日祝福 */
+        #birthday-page {
+            background-color: transparent;
+        }
+
+        #background-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0;
+            z-index: 1;
+        }
+
+        .message-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: flex-start;
+        }
+
+        .message-bubble {
+            background-color: rgba(255, 255, 255, 0.95);
+            border-radius: 25px;
+            padding: 18px 25px;
+            margin-bottom: 20px;
+            max-width: 85%;
+            opacity: 0;
+            transform: translateX(-20px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            position: relative;
+            font-size: 18px;
+            line-height: 1.4;
+        }
+
+        .yellow-bubble {
+            background-color: rgba(255, 240, 140, 0.95);
+        }
+
+        /* 第6页：评分页面 */
+        #rating-page {
+            background-color: black;
+            color: white;
+            text-align: center;
+        }
+
+        #xD-text {
+            font-size: 60px;
+            font-weight: bold;
+            margin-bottom: 40px;
+            opacity: 0;
+        }
+
+        #rate-text {
+            font-size: 24px;
+            margin-bottom: 30px;
+            opacity: 0;
+        }
+
+        .stars-container {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .star {
+            font-size: 50px;
+            cursor: pointer;
+            color: #ccc;
+            transition: color 0.3s;
+        }
+
+        .star.active {
+            color: #FFD700;
+        }
+
+        /* 第7页：感谢页面 */
+        #thanks-page {
+            background-color: black;
+            color: white;
+            text-align: center;
+        }
+
+        .thanks-text {
+            font-size: 32px;
+            line-height: 1.5;
+            max-width: 80%;
+            opacity: 0;
+        }
+
+        /* 飘落的emoji */
+        .floating-emoji {
+            position: absolute;
+            font-size: 24px;
+            opacity: 0.7;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        /* 响应式调整 */
+        @media (orientation: landscape) {
+            #rotate-page {
+                display: none !important;
+            }
+            
+            .landscape-page {
+                display: flex;
+            }
+        }
+
+        @media (orientation: portrait) {
+            .landscape-page {
+                display: none !important;
+            }
+            
+            #rotate-page {
+                display: flex;
+            }
+        }
+    </style>
 </head>
 <body>
-
-  <!-- 首页文本，点阵动画 -->
-  <div id="homeScreen" aria-label="请等待加载">
-    <div id="loadingCanvas" aria-hidden="true"></div>
-  </div>
-
-  <!-- 主舞台（后续动画） -->
-  <div id="stage" aria-hidden="true">
-
-    <!-- image2 区域 -->
-    <div id="image2Wrap">
-      <img id="image2" src="image2.jpg" alt="祝福图片" />
+    <!-- 第1页：旋转提示 -->
+    <div id="rotate-page" class="page">
+        <div class="rotate-message">
+            please rotate your phone📱
+        </div>
     </div>
 
-    <!-- loading scene 隐藏，暂不需要 -->
-    <div id="loadingScene" class="scene hidden" aria-hidden="true">
-      <div id="loadingCanvas2" aria-hidden="true"></div>
-      <div id="loadingTextLabel">loading...</div>
+    <!-- 第2页：图片展示 -->
+    <div id="image2-page" class="page landscape-page">
+        <div class="image-container">
+            <img id="image2" src="https://images.unsplash.com/photo-1579546929662-711aa81148cf?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80" alt="Colorful gradient">
+        </div>
     </div>
 
-    <!-- image3 区域 -->
-    <div id="image3Wrap">
-      <img id="image3" src="image3.png" alt="箭头" />
+    <!-- 第3页：加载动画 -->
+    <div id="loading-page" class="page landscape-page">
+        <div class="loading-container">
+            <div class="loading-text">LOADING</div>
+        </div>
     </div>
 
-    <!-- image1 背景，滑入 -->
-    <div id="image1bg"></div>
-
-    <!-- 气泡 -->
-    <div id="bubbles"></div>
-
-    <!-- 最终xD评分屏幕 -->
-    <div id="finalXDScreen" class="scene hidden" aria-hidden="true">
-      <div id="xDText" style="font-weight: 800;">xD</div>
-      <div id="pleaseRate">please rate</div>
-      <div id="stars" aria-label="rating">
-        <span class="star" data-value="1">☆</span>
-        <span class="star" data-value="2">☆</span>
-        <span class="star" data-value="3">☆</span>
-        <span class="star" data-value="4">☆</span>
-        <span class="star" data-value="5">☆</span>
-      </div>
+    <!-- 第4页：箭头显示 -->
+    <div id="arrow-page" class="page landscape-page">
+        <div id="arrow"></div>
     </div>
 
-    <!-- 感谢页面 -->
-    <div id="thanksPage" class="scene" aria-hidden="true">
-      <div style="white-space: pre-line; font-weight: 600;">
-        thanks for your 5 star
-        （knew you would do this xD love you looots
-      </div>
+    <!-- 第5页：生日祝福 -->
+    <div id="birthday-page" class="page landscape-page">
+        <img id="background-image" src="https://images.unsplash.com/photo-1530103862676-de8c9debad1d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80" alt="Beautiful background">
+        <div class="message-container">
+            <!-- 消息气泡将通过JavaScript动态添加 -->
+        </div>
     </div>
 
-  </div>
+    <!-- 第6页：评分页面 -->
+    <div id="rating-page" class="page landscape-page">
+        <div id="xD-text">xD</div>
+        <div id="rate-text">please rate</div>
+        <div class="stars-container">
+            <div class="star" data-value="1">☆</div>
+            <div class="star" data-value="2">☆</div>
+            <div class="star" data-value="3">☆</div>
+            <div class="star" data-value="4">☆</div>
+            <div class="star" data-value="5">☆</div>
+        </div>
+    </div>
 
-<script>
-(() => {
-  // 配置项
-  const PIXEL_SIZE = 26;        // 点阵块大小（和css保持一致）
-  const PIXEL_GAP = PIXEL_SIZE + 4; // 间隔，保证不重叠
-  const REPEAT_COUNT = 2;       // 字样重复次数（横向重复）
-  const TEXT = "HBD！！！";     // 首页显示文本
-  const CANVAS_WIDTH = 380;     // canvas大小，和css最大宽度对齐
-  const CANVAS_HEIGHT = 180;
+    <!-- 第7页：感谢页面 -->
+    <div id="thanks-page" class="page landscape-page">
+        <div class="thanks-text">
+            thanks for your 5 star<br>
+            (knew you would do this xD love you looots)
+        </div>
+    </div>
 
-  // 元素
-  const homeScreen = document.getElementById("homeScreen");
-  const loadingCanvas = document.getElementById("loadingCanvas");
-  const stage = document.getElementById("stage");
-  const image2 = document.getElementById("image2");
-  const image2Wrap = document.getElementById("image2Wrap");
-  const image3 = document.getElementById("image3");
-  const image3Wrap = document.getElementById("image3Wrap");
-  const image1bg = document.getElementById("image1bg");
-  const bubblesWrap = document.getElementById("bubbles");
-  const finalXDScreen = document.getElementById("finalXDScreen");
-  const pleaseRate = document.getElementById("pleaseRate");
-  const stars = document.getElementById("stars");
-  const thanksPage = document.getElementById("thanksPage");
+    <script>
+        // 页面元素
+        const pages = [
+            'rotate-page',
+            'image2-page',
+            'loading-page',
+            'arrow-page',
+            'birthday-page',
+            'rating-page',
+            'thanks-page'
+        ];
 
-  // loadingCanvas容器大小，用来定位pixel
-  loadingCanvas.style.width = CANVAS_WIDTH + "px";
-  loadingCanvas.style.height = CANVAS_HEIGHT + "px";
-  loadingCanvas.style.position = "relative";
+        // 生日祝福消息
+        const messages = [
+            "Heyyy Ahmed, happy birthday to you!🥳",
+            "If I could give you something today, it would be a quiet moment where nothing hurts and presses you",
+            "I see how much you're carrying, and I respect you for that!",
+            "I hope this year brings you more ease so that you can breathe. 🫂",
+            "Remember! You can always be yourself with me! Lots of love!🥰"
+        ];
 
-  // 创建用于渲染文本的canvas（不放页面，仅用于采样）
-  const canvas = document.createElement("canvas");
-  canvas.width = CANVAS_WIDTH;
-  canvas.height = CANVAS_HEIGHT;
-  const ctx = canvas.getContext("2d");
-  ctx.font = "bold 120px sans-serif";
-  ctx.textBaseline = "middle";
-  ctx.fillStyle = "#000";
-
-  // 生成文本图像，重复两次文字 横向拼接，中间留空
-  const textXOffset = 8;
-  const textYOffset = CANVAS_HEIGHT / 2;
-  ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-
-  // 画两遍文本，中间间隔较大
-  const repeatText = TEXT + "   " + TEXT;
-  ctx.fillText(repeatText, textXOffset, textYOffset);
-
-  // 采样阈值，alpha>128认为有点
-  const ALPHA_THRESHOLD = 128;
-
-  // 采样点位置集合
-  const pixelPositions = [];
-
-  // 采样间隔为 PIXEL_GAP 保证不会重叠
-  for (let y = 0; y < CANVAS_HEIGHT; y += PIXEL_GAP) {
-    for (let x = 0; x < CANVAS_WIDTH; x += PIXEL_GAP) {
-      const data = ctx.getImageData(x, y, 1, 1).data;
-      // data是rgba，判定alpha和黑色像素
-      if (data[3] > ALPHA_THRESHOLD && data[0] < 128 && data[1] < 128 && data[2] < 128) {
-        pixelPositions.push({ x, y });
-      }
-    }
-  }
-
-  // 依次创建pixel元素，延迟逐个出现
-  async function showPixelsSequentially() {
-    loadingCanvas.innerHTML = "";
-    for (let i = 0; i < pixelPositions.length; i++) {
-      const pos = pixelPositions[i];
-      const el = document.createElement("div");
-      el.className = "pixel";
-      el.style.width = PIXEL_SIZE + "px";
-      el.style.height = PIXEL_SIZE + "px";
-      el.style.left = pos.x + "px";
-      el.style.top = pos.y + "px";
-      loadingCanvas.appendChild(el);
-
-      // 延迟显示，保证点阵依次从上到下、左到右出现
-      await new Promise((r) => setTimeout(r, 20));
-
-      el.style.opacity = "1";
-      el.style.transform = "translateY(0)";
-    }
-  }
-
-  // 序列显示点阵，然后切换到后续动画
-  async function runSequence() {
-    // 显示首页点阵文字
-    await showPixelsSequentially();
-
-    // 保持一点停顿后进入后续动画
-    await new Promise((r) => setTimeout(r, 1200));
-
-    // 隐藏首页，显示主舞台
-    homeScreen.style.display = "none";
-    stage.style.display = "block";
-    stage.setAttribute("aria-hidden", "false");
-
-    // 显示 image2，确保加载完成
-    image2.style.opacity = "1";
-    image2.style.transition = "opacity 1s ease-in-out";
-    await ensureImageLoaded(image2);
-
-    // 显示 image3
-    image3.style.opacity = "1";
-
-    // 等待 3秒后 image3 渐隐
-    await new Promise((r) => setTimeout(r, 3000));
-    image3.style.opacity = "0";
-
-    // 等待渐隐完成
-    await new Promise((r) => setTimeout(r, 800));
-
-    // image1 背景滑入
-    image1bg.style.transform = "translateX(0)";
-    await new Promise((r) => setTimeout(r, 1600));
-
-    // 显示气泡
-    await showBubbles();
-
-    // 停顿
-    await new Promise((r) => setTimeout(r, 8000));
-
-    // 显示xD评分页面
-    finalXDScreen.classList.remove("hidden");
-    finalXDScreen.style.display = "flex";
-
-    await new Promise((r) => setTimeout(r, 3000));
-
-    pleaseRate.style.display = "block";
-    stars.style.display = "block";
-    attachStarHandlers();
-  }
-
-  // 确保图片加载完成
-  function ensureImageLoaded(img) {
-    return new Promise((resolve) => {
-      if (img.complete && img.naturalWidth !== 0) return resolve();
-      img.onload = () => resolve();
-      img.onerror = () => resolve();
-    });
-  }
-
-  // 气泡文本
-  const messages = [
-    "Heyyy Ahmed, happy birthday to you!🥳",
-    "If I could give you something today, it would be a quiet moment where nothing hurts and presses you",
-    "I see how much you’re carrying, and I respect you for that!",
-    "I hope this year brings you more ease so that you can breathe. 🫂",
-    "Remember! You can always be yourself with me! Lots of love!🥰",
-  ];
-
-  // 顺序显示气泡
-  async function showBubbles() {
-    bubblesWrap.innerHTML = "";
-    for (let i = 0; i < messages.length; i++) {
-      const el = document.createElement("div");
-      el.className = "bubble " + (i % 2 === 0 ? "white" : "yellow");
-      el.textContent = messages[i];
-      bubblesWrap.appendChild(el);
-      await new Promise((r) => setTimeout(r, 120));
-      el.classList.add("show");
-      await new Promise((r) => setTimeout(r, 5000));
-    }
-  }
-
-  // 评分星星逻辑
-  function attachStarHandlers() {
-    const starEls = Array.from(document.querySelectorAll("#stars .star"));
-    starEls.forEach((s) => {
-      s.addEventListener("click", () => {
-        const val = parseInt(s.dataset.value || "1", 10);
-        fillStars(val);
-        if (val === 5) {
-          setTimeout(() => {
-            finalXDScreen.style.display = "none";
-            thanksPage.style.display = "flex";
-          }, 600);
+        // 飘落的emoji
+        const floatingEmojis = ["🎂", "🧁", "⭐", "💛"];
+        
+        // 当前页面索引
+        let currentPageIndex = 0;
+        
+        // 显示指定页面
+        function showPage(pageIndex) {
+            // 隐藏所有页面
+            pages.forEach(pageId => {
+                document.getElementById(pageId).style.display = 'none';
+            });
+            
+            // 显示当前页面
+            document.getElementById(pages[pageIndex]).style.display = 'flex';
+            currentPageIndex = pageIndex;
+            
+            // 根据页面索引执行相应的动画
+            switch(pageIndex) {
+                case 0: // 旋转提示页面
+                    setTimeout(() => {
+                        // 检查是否已经是横屏
+                        if (window.innerWidth > window.innerHeight) {
+                            showPage(1);
+                        } else {
+                            // 监听横屏事件
+                            window.addEventListener('resize', checkOrientation);
+                            function checkOrientation() {
+                                if (window.innerWidth > window.innerHeight) {
+                                    window.removeEventListener('resize', checkOrientation);
+                                    showPage(1);
+                                }
+                            }
+                        }
+                    }, 3000);
+                    break;
+                    
+                case 1: // 图片2展示页面
+                    const image2 = document.getElementById('image2');
+                    image2.style.opacity = '0';
+                    image2.style.transform = 'translate(-20%, 20%)';
+                    
+                    // 添加飘落的emoji
+                    createFloatingEmojis('image2-page');
+                    
+                    // 动画：从左下到右上渐显
+                    setTimeout(() => {
+                        image2.style.transition = 'opacity 3s ease, transform 3s ease';
+                        image2.style.opacity = '1';
+                        image2.style.transform = 'translate(0, 0)';
+                    }, 100);
+                    
+                    // 停留9秒后进入下一页
+                    setTimeout(() => {
+                        showPage(2);
+                    }, 9000);
+                    break;
+                    
+                case 2: // 加载页面
+                    createLoadingAnimation();
+                    break;
+                    
+                case 3: // 箭头页面
+                    const arrow = document.getElementById('arrow');
+                    arrow.style.opacity = '0';
+                    
+                    // 添加飘落的emoji
+                    createFloatingEmojis('arrow-page');
+                    
+                    // 箭头显示2秒后渐隐
+                    setTimeout(() => {
+                        arrow.style.transition = 'opacity 2s ease';
+                        arrow.style.opacity = '1';
+                        
+                        setTimeout(() => {
+                            arrow.style.transition = 'opacity 2s ease';
+                            arrow.style.opacity = '0';
+                            
+                            setTimeout(() => {
+                                showPage(4);
+                            }, 2000);
+                        }, 2000);
+                    }, 100);
+                    break;
+                    
+                case 4: // 生日祝福页面
+                    createBirthdayMessages();
+                    break;
+                    
+                case 5: // 评分页面
+                    setupRatingPage();
+                    break;
+                    
+                case 6: // 感谢页面
+                    // 添加飘落的emoji
+                    createFloatingEmojis('thanks-page');
+                    
+                    const thanksText = document.querySelector('.thanks-text');
+                    thanksText.style.opacity = '0';
+                    thanksText.style.transition = 'opacity 2s ease';
+                    
+                    setTimeout(() => {
+                        thanksText.style.opacity = '1';
+                    }, 100);
+                    break;
+            }
         }
-      });
-      s.addEventListener("mouseover", () => {
-        const v = parseInt(s.dataset.value, 10);
-        fillStars(v);
-      });
-      s.addEventListener("mouseout", () => {
-        const filled = document.querySelectorAll("#stars .star.filled").length;
-        fillStars(filled);
-      });
-    });
-  }
-  function fillStars(count) {
-    const starEls = Array.from(document.querySelectorAll("#stars .star"));
-    starEls.forEach((st, idx) => {
-      if (idx < count) {
-        st.textContent = "⭐";
-        st.classList.add("filled");
-      } else {
-        st.textContent = "☆";
-        st.classList.remove("filled");
-      }
-    });
-  }
-
-  // 启动动画流程
-  runSequence();
-})();
-</script>
-
+        
+        // 创建加载动画
+        function createLoadingAnimation() {
+            const loadingContainer = document.querySelector('.loading-container');
+            const loadingText = document.querySelector('.loading-text');
+            
+            // 清空之前的加载点
+            const existingDots = loadingContainer.querySelectorAll('.loading-dot');
+            existingDots.forEach(dot => dot.remove());
+            
+            // 添加飘落的emoji
+            createFloatingEmojis('loading-page');
+            
+            // 创建"LOADING"字样的点阵
+            const text = "LOADING";
+            const fontSize = 60;
+            const letterSpacing = 10;
+            const dotSize = 40;
+            const dotSpacing = 15; // 增加点之间的间距
+            
+            // 计算文本总宽度
+            const textWidth = (text.length * (fontSize + letterSpacing)) - letterSpacing;
+            
+            // 获取容器尺寸
+            const containerWidth = loadingContainer.offsetWidth;
+            const containerHeight = loadingContainer.offsetHeight;
+            
+            // 文本起始位置
+            const startX = (containerWidth - textWidth) / 2;
+            const startY = (containerHeight - fontSize) / 2;
+            
+            // 创建每个字母的点阵
+            let totalDots = 0;
+            let dotsCreated = 0;
+            
+            // 计算总点数
+            for (let i = 0; i < text.length; i++) {
+                const letter = text[i];
+                // 简单点阵模式 - 每个字母用7个点表示
+                totalDots += 7;
+            }
+            
+            // 创建点
+            for (let i = 0; i < text.length; i++) {
+                const letter = text[i];
+                const letterX = startX + i * (fontSize + letterSpacing);
+                
+                // 为每个字母创建7个点
+                for (let j = 0; j < 7; j++) {
+                    const dot = document.createElement('div');
+                    dot.className = 'loading-dot';
+                    
+                    // 设置点的大小
+                    dot.style.width = `${dotSize}px`;
+                    dot.style.height = `${dotSize}px`;
+                    
+                    // 设置点的位置（稀疏排列）
+                    const row = Math.floor(j / 3);
+                    const col = j % 3;
+                    const dotX = letterX + col * (dotSize + dotSpacing);
+                    const dotY = startY + row * (dotSize + dotSpacing);
+                    
+                    dot.style.left = `${dotX}px`;
+                    dot.style.top = `${dotY}px`;
+                    
+                    loadingContainer.appendChild(dot);
+                    dotsCreated++;
+                    
+                    // 延迟显示每个点
+                    setTimeout(() => {
+                        dot.style.transition = 'opacity 0.5s ease';
+                        dot.style.opacity = '1';
+                        
+                        // 所有点显示完成后，等待一会儿然后重新开始或进入下一页
+                        if (dotsCreated === totalDots) {
+                            // 第一次循环完成
+                            if (i === text.length - 1 && j === 6) {
+                                // 等待1秒后隐藏所有点
+                                setTimeout(() => {
+                                    const allDots = document.querySelectorAll('.loading-dot');
+                                    allDots.forEach(d => {
+                                        d.style.transition = 'opacity 0.5s ease';
+                                        d.style.opacity = '0';
+                                    });
+                                    
+                                    // 等待隐藏动画完成后开始第二次循环
+                                    setTimeout(() => {
+                                        // 第二次循环
+                                        setTimeout(() => {
+                                            createLoadingAnimation();
+                                            // 第二次循环完成后进入下一页
+                                            if (currentPageIndex === 2) {
+                                                setTimeout(() => {
+                                                    showPage(3);
+                                                }, 3000);
+                                            }
+                                        }, 1000);
+                                    }, 500);
+                                }, 1000);
+                            }
+                        }
+                    }, (i * 7 + j) * 100);
+                }
+            }
+        }
+        
+        // 创建生日祝福消息
+        function createBirthdayMessages() {
+            const messageContainer = document.querySelector('.message-container');
+            messageContainer.innerHTML = '';
+            
+            // 背景图片渐显
+            const bgImage = document.getElementById('background-image');
+            bgImage.style.transition = 'opacity 3s ease';
+            bgImage.style.opacity = '1';
+            
+            // 添加飘落的emoji
+            createFloatingEmojis('birthday-page');
+            
+            // 显示每条消息
+            messages.forEach((message, index) => {
+                const bubble = document.createElement('div');
+                bubble.className = `message-bubble ${index === 0 || index === 4 ? 'yellow-bubble' : ''}`;
+                bubble.textContent = message;
+                
+                messageContainer.appendChild(bubble);
+                
+                // 延迟显示每条消息
+                setTimeout(() => {
+                    bubble.style.transition = 'opacity 1s ease, transform 1s ease';
+                    bubble.style.opacity = '1';
+                    bubble.style.transform = 'translateX(0)';
+                    
+                    // 最后一条消息显示后停留8秒
+                    if (index === messages.length - 1) {
+                        setTimeout(() => {
+                            showPage(5);
+                        }, 8000);
+                    }
+                }, index * 5000); // 每条消息间隔5秒
+            });
+        }
+        
+        // 设置评分页面
+        function setupRatingPage() {
+            const xdText = document.getElementById('xD-text');
+            const rateText = document.getElementById('rate-text');
+            const stars = document.querySelectorAll('.star');
+            
+            // 添加飘落的emoji
+            createFloatingEmojis('rating-page');
+            
+            // 显示xD文本
+            xdText.style.transition = 'opacity 1s ease';
+            xdText.style.opacity = '1';
+            
+            // 3秒后显示"please rate"文本
+            setTimeout(() => {
+                rateText.style.transition = 'opacity 1s ease';
+                rateText.style.opacity = '1';
+                
+                // 星星评分功能
+                stars.forEach(star => {
+                    star.addEventListener('click', function() {
+                        const value = parseInt(this.getAttribute('data-value'));
+                        
+                        // 更新星星显示
+                        stars.forEach((s, index) => {
+                            if (index < value) {
+                                s.textContent = '★';
+                                s.classList.add('active');
+                            } else {
+                                s.textContent = '☆';
+                                s.classList.remove('active');
+                            }
+                        });
+                        
+                        // 如果点击了第五颗星，跳转到感谢页面
+                        if (value === 5) {
+                            setTimeout(() => {
+                                showPage(6);
+                            }, 1000);
+                        }
+                    });
+                });
+            }, 3000);
+        }
+        
+        // 创建飘落的emoji
+        function createFloatingEmojis(pageId) {
+            const page = document.getElementById(pageId);
+            
+            // 创建多个emoji
+            for (let i = 0; i < 12; i++) {
+                const emoji = document.createElement('div');
+                emoji.className = 'floating-emoji';
+                emoji.textContent = floatingEmojis[Math.floor(Math.random() * floatingEmojis.length)];
+                
+                // 随机位置
+                const startX = Math.random() * 100;
+                emoji.style.left = `${startX}%`;
+                emoji.style.top = '-30px';
+                
+                // 随机大小
+                const size = Math.random() * 20 + 20;
+                emoji.style.fontSize = `${size}px`;
+                
+                // 随机动画时长
+                const duration = Math.random() * 10 + 10;
+                const delay = Math.random() * 5;
+                
+                emoji.style.animation = `float ${duration}s linear ${delay}s infinite`;
+                
+                // 添加自定义漂浮动画
+                const style = document.createElement('style');
+                if (!document.querySelector('#float-animation')) {
+                    style.id = 'float-animation';
+                    style.textContent = `
+                        @keyframes float {
+                            0% {
+                                transform: translateY(0) rotate(0deg);
+                                opacity: 0.7;
+                            }
+                            100% {
+                                transform: translateY(100vh) rotate(360deg);
+                                opacity: 0;
+                            }
+                        }
+                    `;
+                    document.head.appendChild(style);
+                }
+                
+                page.appendChild(emoji);
+                
+                // 移除动画完成的emoji
+                setTimeout(() => {
+                    if (emoji.parentNode) {
+                        emoji.parentNode.removeChild(emoji);
+                    }
+                }, (duration + delay) * 1000);
+            }
+            
+            // 每2秒创建新的emoji
+            if (currentPageIndex >= 2 && currentPageIndex <= 6) {
+                setTimeout(() => {
+                    createFloatingEmojis(pageId);
+                }, 2000);
+            }
+        }
+        
+        // 页面加载完成后开始显示第一页
+        document.addEventListener('DOMContentLoaded', () => {
+            showPage(0);
+        });
+    </script>
 </body>
 </html>
