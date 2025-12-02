@@ -1,416 +1,402 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
+<meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HBD ❤️</title>
+<title>HBD Ahmed</title>
 
 <style>
-html, body {
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-    font-family: Arial, sans-serif;
-    background: #fff;
+/* Reset */
+body,html{
+  margin:0;
+  padding:0;
+  width:100%;
+  height:100%;
+  background:#fff;
+  overflow:hidden;
+  font-family:Arial, sans-serif;
 }
 
-/* 手机竖屏提示 */
-#rotateScreen {
-    position: fixed;
-    inset: 0;
-    display: none;
-    justify-content: center;
-    align-items: center;
-    background: white;
-    color: black;
-    font-size: 32px;
-    z-index: 10;
+/* ROTATE PAGE */
+#rotatePage{
+  position:fixed;
+  inset:0;
+  background:white;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:7vw;
+  font-weight:700;
+  z-index:1000;
 }
 
-/* 横屏容器（rotate） */
-#landscapeWrapper {
-    display: none;
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100vh;
-    height: 100vw;
-    transform: rotate(90deg);
-    transform-origin: left top;
-    background: white;
-    overflow: hidden;
+/* MAIN CONTENT hidden initially */
+#mainContent{
+  display:none;
+  width:100vw;
+  height:100vh;
+  position:relative;
+  overflow:hidden;
 }
 
-/* image2 动画（斜角推入） */
-#image2 {
-    position: absolute;
-    width: auto;
-    height: auto;
-    max-width: none;
-    max-height: none;
-    left: -40%;
-    top: 140%;
-    opacity: 0;
-    transition: all 3.5s ease-in-out;
+/* ============= IMAGE2 ANIMATION (Diagonal reveal) ============ */
+#image2Container{
+  position:absolute;
+  inset:0;
+  background:white;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+}
+#image2{
+  width:auto;
+  height:auto;
+  max-width:100%;
+  max-height:100%;
+  opacity:0;
+  transform:translate(-40%,40%) rotate(-8deg);
+  transition:opacity 3s ease, transform 6s ease;
 }
 
-#image2.show {
-    opacity: 1;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
+/* ============== LOADING PAGE ============= */
+#loadingPage{
+  position:absolute;
+  inset:0;
+  background:white;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
 }
 
-/* 柔光白边遮罩 */
-#softMask {
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(circle, rgba(255,255,255,0.7), rgba(255,255,255,1) 85%);
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 2s ease;
+.pixelRow{
+  display:flex;
+  flex-direction:row;
+  justify-content:center;
+}
+.pixel{
+  width:22px;
+  height:22px;
+  margin:3px;
+  opacity:0;
+  transition:opacity .3s;
+  background-size:cover;
 }
 
-/* loading 部分 */
-#loadingArea {
-    position: absolute;
-    inset: 0;
-    display: none;
-    justify-content: center;
-    align-items: center;
-    flex-direction: column;
+/* emoji rain */
+.emoji{
+  position:fixed;
+  top:-10vh;
+  font-size:2.2rem;
+  animation:fall 4s linear infinite;
+}
+@keyframes fall{
+  to{
+    transform:translateY(120vh);
+    opacity:0;
+  }
 }
 
-#pixelLoading {
-    display: grid;
-    grid-template-columns: repeat(40, 20px);
-    grid-gap: 4px;
+/* ============ ARROW (image3) ============ */
+#arrowPage{
+  position:absolute;
+  inset:0;
+  display:none;
+  align-items:center;
+  justify-content:flex-end;
+  padding-right:5vw;
+}
+#arrow{
+  width:18vw;
+  opacity:0;
+  transition:opacity 2s;
 }
 
-/* loading 像素点 */
-.pixelDot {
-    width: 20px;
-    height: 20px;
-    opacity: 0;
+    /* ============ IMAGE1 BACKGROUND + MESSAGE BUBBLES ============ */
+#messagePage{
+  position:absolute;
+  inset:0;
+  display:none;
+  background:white;
+  overflow:hidden;
 }
 
-/* 飘落 emoji */
-.falling {
-    position: absolute;
-    font-size: 40px;
-    top: -10%;
-    animation: fall 4.5s linear forwards;
-    pointer-events: none;
+#bgImage1{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  opacity:0;
+  transition:opacity 3s ease;
 }
 
-@keyframes fall {
-    0% { opacity: 1; transform: translateY(-30px); }
-    100% { opacity: 0; transform: translateY(110vh); }
+/* bubble */
+.bubble{
+  max-width:80%;
+  margin-left:5vw;
+  padding:12px 18px;
+  margin-bottom:18px;
+  background:rgba(255,255,255,0.95);
+  border-radius:18px;
+  box-shadow:0 4px 12px rgba(0,0,0,0.2);
+  opacity:0;
+  transform:translateY(20px);
+  transition:opacity .8s ease, transform .8s ease;
+  font-size:4vw;
 }
 
-/* 箭头 */
-#arrowRight {
-    position: absolute;
-    right: 20px;
-    top: 50%;
-    transform: translateY(-50%);
-    opacity: 0;
-    width: 120px;
-    display: none;
-    transition: opacity 2s ease-in-out;
+/* ============ FINAL PAGE ============ */
+#finalPage{
+  position:absolute;
+  inset:0;
+  background:black;
+  display:none;
+  color:white;
+  font-size:7vw;
+  font-weight:bold;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+}
+#rateText{
+  margin-top:5vh;
+  font-size:5vw;
+}
+#stars{
+  margin-top:3vh;
+  font-size:10vw;
+  cursor:pointer;
+  user-select:none;
 }
 
-/* 气泡 */
-.bubble {
-    background: rgba(255,255,255,0.92);
-    padding: 16px 26px;
-    border-radius: 22px;
-    max-width: 72%;
-    font-size: 26px;
-    margin-bottom: 20px;
-    box-shadow: 0px 6px 12px rgba(0,0,0,0.15);
-    opacity: 0;
-    transform: translateX(-40px);
-    transition: all 1.2s ease;
-}
-
-/* 结尾页 */
-#endPage {
-    position: absolute;
-    inset: 0;
-    background: black;
-    color: white;
-    display: none;
-    justify-content: center;
-    align-items: center;
-    flex-direction: column;
-    font-size: 42px;
-}
-
-#rating {
-    margin-top: 20px;
-    font-size: 55px;
-    cursor: pointer;
+/* THANK YOU PAGE */
+#thankPage{
+  position:absolute;
+  inset:0;
+  background:black;
+  color:white;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  padding:5vw;
+  font-size:5.5vw;
 }
 </style>
 </head>
 
 <body>
 
-<!-- rotate -->
-<div id="rotateScreen">please rotate your phone📱</div>
+<!-- ROTATE PAGE -->
+<div id="rotatePage">please rotate your phone📱</div>
 
-<!-- 横屏主体 -->
-<div id="landscapeWrapper">
+<!-- MAIN CONTENT -->
+<div id="mainContent">
 
-    <!-- image2 -->
-    <img id="image2" src="image2.jpg">
-    <div id="softMask"></div>
+  <!-- IMAGE2 -->
+  <div id="image2Container">
+    < img src="image2.jpg" id="image2">
+  </div>
 
-    <!-- loading -->
-    <div id="loadingArea">
-        <div id="pixelLoading"></div>
-    </div>
+  <!-- LOADING PAGE -->
+  <div id="loadingPage"></div>
 
-    <!-- 切换箭头 -->
-    <img src="image3.png" id="arrowRight">
+  <!-- ARROW PAGE -->
+  <div id="arrowPage">
+    < img src="image3.png" id="arrow">
+  </div>
 
-    <!-- 气泡 -->
-    <div id="bubbleArea" style="position:absolute; left:10%; bottom:20%;"></div>
+  <!-- MESSAGE PAGE -->
+  <div id="messagePage">
+    < img id="bgImage1" src="image1.jpg">
+  </div>
 
-    <!-- 结束页 -->
-    <div id="endPage">
-        xD
-        <div style="margin-top:18px; font-size:30px;">please rate</div>
-        <div id="rating">☆☆☆☆☆</div>
-    </div>
+  <!-- FINAL PAGE -->
+  <div id="finalPage">
+    xD
+    <div id="rateText">please rate</div>
+    <div id="stars">☆☆☆☆☆</div>
+  </div>
+
+  <!-- THANK YOU PAGE -->
+  <div id="thankPage">
+    thanks for your 5 star<br><br>
+    (knew you would do this xD love you looots<br><br>
+    jingjingjing6<br>
+    https://github.com/jingjingjing6/Hbd2aa10
+  </div>
+
 </div>
 
 <script>
-/* 设备判断 */
-const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+// ======== HELPERS ========
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
 
-/* 展示横屏主体 */
-function showMain(){
-    document.getElementById("rotateScreen").style.display="none";
-    document.getElementById("landscapeWrapper").style.display="block";
-    animateImage2();
+// emoji rain generator
+function spawnEmoji(){
+  const emojis = ["🎂","🧁","⭐","💛"];
+  const e = document.createElement("div");
+  e.className="emoji";
+  e.textContent = emojis[Math.floor(Math.random()*emojis.length)];
+  e.style.left = Math.random()*90+"vw";
+  e.style.animationDuration = (3+Math.random()*2)+"s";
+  document.body.appendChild(e);
+  setTimeout(()=>e.remove(),5000);
 }
 
-/* 手机竖屏 → rotate */
-if (isMobile && window.innerHeight > window.innerWidth){
-    document.getElementById("rotateScreen").style.display="flex";
-    setTimeout(showMain, 3000);
-} else {
-    showMain();
-}
+// ========== PIXEL LOADING WORD ==========
+// 点阵字：LOADING...
+const loadingPattern = [
+"1110111  111  111",
+"1010101  010  010",
+"1010101  111  111",
+"1010101  010  000",
+"1110111  111  111"
+];
 
-/* image2 动画 */
-function animateImage2(){
-    const img = document.getElementById("image2");
-    img.classList.add("show");
-    setTimeout(()=>document.getElementById("softMask").style.opacity=1,1500);
-    setTimeout(startLoading, 9000);
-}
+// ========== MAIN SEQUENCE ==========
+async function start(){
 
-/* LOADING 像素字母矩阵（A 方案） */
-const letterMatrix = {
-    L:[
-        "1","1","1","1","1",
-        "1","0","0","0","0",
-        "1","0","0","0","0",
-        "1","0","0","0","0",
-        "1","1","1","1","1"
-    ],
-    O:[
-        "1","1","1","1","1",
-        "1","0","0","0","1",
-        "1","0","0","0","1",
-        "1","0","0","0","1",
-        "1","1","1","1","1"
-    ],
-    A:[
-        "0","1","1","1","0",
-        "1","0","0","0","1",
-        "1","1","1","1","1",
-        "1","0","0","0","1",
-        "1","0","0","0","1"
-    ],
-    D:[
-        "1","1","1","1","0",
-        "1","0","0","0","1",
-        "1","0","0","0","1",
-        "1","0","0","0","1",
-        "1","1","1","1","0"
-    ],
-    I:[
-        "1","1","1",
-        "0","1","0",
-        "0","1","0",
-        "0","1","0",
-        "1","1","1"
-    ],
-    N:[
-        "1","0","0","0","1",
-        "1","1","0","0","1",
-        "1","0","1","0","1",
-        "1","0","0","1","1",
-        "1","0","0","0","1"
-    ]
-};
+  /* rotate page logic */
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-/* 生成 LOADING.. 点阵 */
-function startLoading(){
+  if(isMobile){
+    await sleep(3000);
+    document.getElementById("rotatePage").style.display="none";
+  }else{
+    document.getElementById("rotatePage").style.display="none";
+  }
 
-    document.getElementById("loadingArea").style.display="flex";
+  document.getElementById("mainContent").style.display="block";
 
-    const container = document.getElementById("pixelLoading");
-    container.style.gridTemplateColumns = "repeat(40,20px)";
+  /* FORCE LANDSCAPE LAYOUT */
+  document.body.style.transformOrigin="left top";
+  if(window.innerHeight>window.innerWidth){
+    document.body.style.transform="rotate(90deg)";
+  }
 
-    const word = ["L","O","A","D","I","N","G",".",".","L","O","A","D","I","N","G",".","."];
+  /* =========== IMAGE2 ANIMATION ========== */
+  const img2 = document.getElementById("image2");
+  await sleep(100);
+  img2.style.opacity="1";
+  img2.style.transform="translate(0,0) rotate(0)";
+  await sleep(9000);
 
-    let dots = [];
+  /* =========== LOADING PAGE ========== */
+  const loading = document.getElementById("loadingPage");
+  loading.style.display="flex";
 
-    word.forEach(ch=>{
+  // build pixel matrix
+  for(let r=0;r<loadingPattern.length;r++){
+    const row = document.createElement("div");
+    row.className="pixelRow";
 
-        if(ch==="."){
-            let empty = document.createElement("div");
-            empty.style.width="20px";
-            empty.style.height="20px";
-            container.appendChild(empty);
+    for(let c=0;c<loadingPattern[r].length;c++){
+      const ch = loadingPattern[r][c];
+      const px = document.createElement("div");
 
-            let dot = document.createElement("img");
-            dot.src = "image4.png";
-            dot.className = "pixelDot";
-            container.appendChild(dot);
-            dots.push(dot);
+      if(ch==="1"){
+        px.className="pixel";
+        px.style.backgroundImage="url('image4.png')";
+      }else{
+        px.style.width="22px";
+        px.style.height="22px";
+        px.style.margin="3px";
+        px.style.opacity="0";
+      }
 
-            return;
-        }
-
-        const matrix = letterMatrix[ch];
-
-        const w = ch==="I" ? 3 : 5 ;
-
-        for(let i=0;i<matrix.length;i++){
-            let cell = document.createElement("img");
-            cell.src="image4.png";
-            cell.className="pixelDot";
-            if(matrix[i]==="0") cell.style.opacity=0;
-            container.appendChild(cell);
-            if(matrix[i]==="1") dots.push(cell);
-        }
-
-        let spacer = document.createElement("div");
-        spacer.style.width="20px";
-        spacer.style.height="20px";
-        container.appendChild(spacer);
-    });
-
-    let idx=0;
-    function lightUp(){
-        if(idx>=dots.length){
-            setTimeout(showArrow,1000);
-            return;
-        }
-        dots[idx].style.opacity=1;
-        idx++;
-        setTimeout(lightUp, 55);
+      row.appendChild(px);
     }
-    lightUp();
 
-    spawnEmojis();
-}
+    loading.appendChild(row);
+  }
 
-/* emoji 飘落 */
-function spawnEmojis(){
-    const emojis=["🎂","🧁","⭐","💛"];
-    setInterval(()=>{
-        const el=document.createElement("div");
-        el.className="falling";
-        el.innerText=emojis[Math.floor(Math.random()*emojis.length)];
-        el.style.left=Math.random()*100+"vw";
-        document.getElementById("landscapeWrapper").appendChild(el);
-        setTimeout(()=>el.remove(),5000);
-    },260);
-}
+  // pixel appear two loops
+  const pixels = document.querySelectorAll(".pixel");
+  for(let loop=0;loop<2;loop++){
+    for(let i=0;i<pixels.length;i++){
+      pixels[i].style.opacity="1";
+      spawnEmoji();
+      await sleep(35);
+    }
+    await sleep(400);
+  }
+  await sleep(1000);
+  loading.style.display="none";
 
-/* 箭头 */
-function showArrow(){
-    const a=document.getElementById("arrowRight");
-    a.style.display="block";
-    setTimeout(()=>a.style.opacity=1, 50);
+  /* =========== ARROW PAGE ========== */
+  const arrowPage = document.getElementById("arrowPage");
+  const arrow = document.getElementById("arrow");
+  arrowPage.style.display="flex";
+  await sleep(100);
+  arrow.style.opacity="1";
+  await sleep(2000);
+  arrow.style.opacity="0";
+  await sleep(1500);
+  arrowPage.style.display="none";
 
-    setTimeout(()=>{
-        a.style.opacity=0;
-        setTimeout(showBubbles,2000);
-    },2000);
-}
+  /* =========== IMAGE1 + BUBBLES ========== */
+  const msgPage = document.getElementById("messagePage");
+  const bg = document.getElementById("bgImage1");
+  msgPage.style.display="block";
+  await sleep(50);
+  bg.style.opacity="1";
 
-/* 气泡 */
-const msgs = [
+  const messages = [
     "Heyyy Ahmed, happy birthday to you!🥳",
     "If I could give you something today, it would be a quiet moment where nothing hurts and presses you",
     "I see how much you’re carrying, and I respect you for that!",
     "I hope this year brings you more ease so that you can breathe. 🫂",
     "Remember! You can always be yourself with me! Lots of love!🥰"
-];
+  ];
 
-function showBubbles(){
-    const box = document.getElementById("bubbleArea");
-    let i=0;
+  for(let m of messages){
+    const b = document.createElement("div");
+    b.className="bubble";
+    b.textContent = m;
+    msgPage.appendChild(b);
+    await sleep(50);
+    b.style.opacity="1";
+    b.style.transform="translateY(0)";
+    await sleep(5000);
+  }
 
-    function next(){
-        if(i>=msgs.length){
-            setTimeout(showEnd,8000);
-            return;
-        }
-        let b=document.createElement("div");
-        b.className="bubble";
-        b.innerText=msgs[i];
-        box.appendChild(b);
+  await sleep(8000);
 
-        setTimeout(()=>b.style.opacity=1,50);
-        setTimeout(()=>b.style.transform="translateX(0)",50);
+  /* =========== FINAL PAGE ========== */
+  const final = document.getElementById("finalPage");
+  final.style.display="flex";
 
-        i++;
-        setTimeout(next,5000);
+  // emoji rain in final page too
+  const rainInt = setInterval(spawnEmoji,400);
+
+  // handle stars
+  const stars = document.getElementById("stars");
+  stars.onclick = async function(e){
+    if(e.target.innerText){
+      let idx = stars.innerText.indexOf("☆");
+      if(idx===-1) idx=5;
+      else idx = idx;
+      let n = idx+1;
+      if(n>5) n=5;
+      stars.innerText = "⭐".repeat(n) + "☆".repeat(5-n);
+
+      if(n===5){
+        clearInterval(rainInt);
+        await sleep(600);
+        final.style.display="none";
+        document.getElementById("thankPage").style.display="flex";
+      }
     }
-    next();
+  };
+
 }
 
-/* 最终页 */
-function showEnd(){
-    document.getElementById("endPage").style.display="flex";
-
-    /* 最终页 emoji */
-    setInterval(()=>{
-        const e=document.createElement("div");
-        e.className="falling";
-        e.innerText=["🎂","🧁","⭐","💛"][Math.floor(Math.random()*4)];
-        e.style.left=Math.random()*100+"vw";
-        document.getElementById("endPage").appendChild(e);
-        setTimeout(()=>e.remove(),5000);
-    },300);
-}
-
-/* 星星评分 */
-document.getElementById("rating").addEventListener("click",function(){
-    this.innerText="⭐⭐⭐⭐⭐";
-    setTimeout(()=>{
-        document.body.innerHTML=`
-        <div style="position:absolute;inset:0;background:black;color:white;display:flex;justify-content:center;align-items:center;flex-direction:column;font-size:34px;">
-            thanks for your 5 star<br><br>
-            (knew you would do this xD love you looots)<br><br>
-            jingjingjing6<br>
-            https://github.com/jingjingjing6/Hbd2aa10
-        </div>`;
-    },500);
-});
+// start only after DOM ready
+window.onload = start;
 </script>
 
 </body>
 </html>
-
