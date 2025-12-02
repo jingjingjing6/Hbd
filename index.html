@@ -1,654 +1,466 @@
-<!doctype html>
-<html lang="zh-CN">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>Birthday Animation</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Birthday</title>
+
 <style>
-  :root{
-    --bg:white;
-    --text:#000;
-    --bubble-bg:#ffffff;
-    --bubble-bg-alt:#fff7a8;
-    --bubble-color:#000;
-    --landscape-w:1000px; /* internal landscape container width */
-    --landscape-h:562px;  /* 16:9 */
-  }
-  html,body{
-    height:100%;
-    margin:0;
-    background: #111; /* dark behind centered stage */
-    font-family: -apple-system, "Helvetica Neue", Arial, "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft Yahei", sans-serif;
-    -webkit-font-smoothing:antialiased;
-    -moz-osx-font-smoothing:grayscale;
-  }
+/* --- 公共设置 --- */
+body, html {
+    margin: 0;
+    padding: 0;
+    background: #fff;
+    overflow: hidden;
+    font-family: Arial, sans-serif;
+}
 
-  /* ---------- ROTATE SCREEN (portrait) ---------- */
-  #rotateScreen{
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    height:100vh;
-    background:#fff;
-    color:#000;
-    font-size:24px;
-    text-align:center;
-    padding:20px;
-    box-sizing:border-box;
-  }
-
-  /* ---------- LANDSCAPE STAGE (all subsequent screens shown inside this) ---------- */
-  #stage {
-    display:none; /* hidden until rotate screen times out */
-    width:100%;
-    min-height:100vh;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    padding:20px;
-    box-sizing:border-box;
-  }
-
-  /* We create an internal fixed-aspect landscape "canvas" so content behaves like horizontal screens.
-     This also ensures "rotate后的所有页面均为横屏出现" 的视觉效果。 */
-  .landscape {
-    width: calc(min(100vw, var(--landscape-w)));
-    height: calc(min(100vh, var(--landscape-h)));
+/* 初始竖屏提示页（唯一竖屏页面） */
+#rotatePage {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     background: white;
-    position:relative;
-    overflow:hidden;
-    box-shadow: 0 6px 30px rgba(0,0,0,0.25);
-    border-radius:6px;
-  }
+    color: black;
+    font-size: 7vw;
+    z-index: 50;
+}
 
-  /* Each scene is an absolutely positioned layer inside .landscape */
-  .scene {
-    position:absolute;
-    inset:0;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    background: white;
-    overflow:hidden;
-  }
-
-  .hidden { display:none!important; }
-
-  /* image2 stage styling */
-  #image2Wrap{
-    background: white;
-  }
-  #image2 {
+/* 从第二页开始全部强制横屏显示 */
+.landscapeForce {
+    transform: rotate(90deg);
+    transform-origin: center center;
+    width: 100vh;
+    height: 100vw;
     position: absolute;
-    left:50%;
-    top:50%;
-    transform: translate(-50%, -50%) translate(-40%,40%);
-    opacity:0;
-    transition: transform 1.6s ease-in-out, opacity 1.6s ease-in-out;
-    /* do not stretch */
-    max-width:none;
-    max-height:none;
-    will-change:transform,opacity;
-  }
+    top: 0;
+    left: calc((100vw - 100vh)/2);
+    overflow: hidden;
+}
 
-  /* loading screen */
-  #loadingScene{
+/* --- Scene 2：image2 出现动画 --- */
+#scene2 {
+    display: none;
     background: white;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    flex-direction:column;
-  }
-  #loadingCanvas {
-    position:relative;
-    width:85%;
-    height:55%;
-    max-width:900px;
-    max-height:300px;
-    overflow:visible;
-    display:block;
-  }
-  .pixel {
-    position:absolute;
-    width:18px;
-    height:18px;
-    background-image: url('image4.png');
-    background-size:contain;
-    background-repeat:no-repeat;
-    opacity:0;
-    transform: translateY(-6px);
-  }
-  #loadingTextLabel{
-    margin-top:12px;
-    font-size:22px; /* 增大 loading 页面文字 */
-    color:#222;
-    font-weight:600;
-  }
+}
+#image2 {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%,50%) scale(0.2);
+    opacity: 0;
+    transition: all 3s ease-in-out;
+}
 
-  /* falling emojis */
-  .emoji-fall {
-    position:absolute;
-    top:-40px;
-    font-size:20px;
-    pointer-events:none;
-    animation-name:fall;
-    animation-timing-function: linear;
-    animation-iteration-count: infinite;
-  }
-  @keyframes fall {
-    to { transform: translateY(620px) rotate(360deg); opacity:0.05; }
-  }
+/* --- Scene 3：大型点阵 LOADING --- */
+#loading {
+    display: none;
+    background: white;
+    position: relative;
+}
+.dot {
+    width: 28px;
+    height: 28px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    position: absolute;
+    opacity: 0;
+    transition: 0.3s ease;
+}
 
-  /* image3 arrow on right vertical centered */
-  #image3 {
-    position:absolute;
-    right:24px;
-    transform: translateY(0);
-    opacity:0;
-    transition: opacity .8s ease-in-out;
-    max-width:80px;
-    max-height:120px;
-    pointer-events:none;
-  }
+/* 飘落 emoji */
+.fallEmoji {
+    position: absolute;
+    font-size: 40px;
+    animation: fall 3.5s linear infinite;
+}
+@keyframes fall {
+    from { transform: translateY(-10vh); opacity: 1; }
+    to { transform: translateY(120vh); opacity: 0; }
+}
 
-  /* image1 background slide in */
-  #image1bg {
-    position:absolute;
-    inset:0;
-    background-size:cover;
-    background-position:center center;
-    transform: translateX(100%);
-    transition: transform 1.6s ease-in-out;
-    z-index:1;
-  }
+/* --- Scene 4：箭头 --- */
+#arrowScene {
+    display: none;
+}
+#arrow {
+    width: 18vh;
+    position: absolute;
+    right: 5vh;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0;
+    transition: 2s ease;
+}
 
-  /* message bubbles container */
-  #bubbles {
-    position:absolute;
-    left:4%;
-    width:56%;
-    bottom:calc(100% / 3); /* start from lower two-thirds */
-    display:flex;
-    flex-direction:column;
-    gap:12px;
-    z-index:2;
-    pointer-events:none;
-  }
-  .bubble {
-    max-width:100%;
-    display:inline-block;
-    padding:12px 14px;
-    border-radius:18px; /* 圆角 */
-    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
-    opacity:0;
-    transform: translateY(8px);
-    transition: opacity .6s ease, transform .6s ease;
-    word-break:break-word;
-    font-size:15px;
-    line-height:1.4;
-  }
-  .bubble.show {
-    opacity:1;
-    transform: translateY(0);
-  }
-  .bubble.white { background: var(--bubble-bg); color: var(--bubble-color); }
-  .bubble.yellow { background: var(--bubble-bg-alt); color: var(--bubble-color); }
+/* --- Scene 5：image1 & 气泡祝福 --- */
+#scene5 {
+    display: none;
+    background: white;
+}
+#image1BG {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100vh;
+    height: 100vw;
+    object-fit: cover;
+}
 
-  /* final xD + rating screen (black) */
-  #finalXDScreen {
-    background:#000;
-    color:#fff;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    flex-direction:column;
-    gap:14px;
-    font-size:48px;
-  }
-  #pleaseRate {
-    font-size:18px;
-    margin-top:6px;
-    display:none;
-  }
-  #stars {
-    font-size:34px;
-    letter-spacing:6px;
-    cursor:pointer;
-    user-select:none;
-    display:none;
-  }
-  .star {
-    display:inline-block;
-    transform:translateY(0);
-    transition: transform .12s ease;
-  }
-  .star:hover{ transform: translateY(-4px); }
+.msgBubble {
+    position: absolute;
+    left: 5vh;
+    padding: 2vh 3vh;
+    background: rgba(255,255,255,0.9);
+    border-radius: 25px;
+    max-width: 80vh;
+    font-size: 3vh;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: 1s ease;
+}
 
-  /* final thank you page */
-  #thanksPage {
-    background:#000;
-    color:#fff;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    text-align:center;
-    padding:20px;
-    box-sizing:border-box;
-    font-size:20px;
-    line-height:1.4;
-  }
+/* --- Scene 6：评分页 --- */
+#ratePage {
+    display: none;
+    color: white;
+    background: black;
+    text-align: center;
+    font-size: 5vh;
+}
+#stars {
+    margin-top: 4vh;
+    font-size: 7vh;
+}
+.star {
+    cursor: pointer;
+    padding: 1vh;
+}
 
-  /* small responsive tweaks */
-  @media (max-width:420px){
-    :root{ --landscape-w:960px; --landscape-h:540px; }
-    .pixel{ width:12px; height:12px; }
-    #loadingTextLabel{ font-size:18px; }
-    #finalXDScreen { font-size:42px; }
-    #stars { font-size:28px; }
-  }
+/* --- 5 星后结束页 --- */
+#thankPage {
+    display: none;
+    background: black;
+    color: white;
+    font-size: 5vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
 </style>
 </head>
 <body>
 
-  <!-- PORTRAIT ROTATE SCREEN -->
-  <div id="rotateScreen">
-    <div style="max-width:90%;margin:auto;">
-      <div style="font-size:28px;font-weight:700;color:#000;">please rotate your phone📱</div>
-    </div>
-  </div>
+<!-- 竖屏提示页 -->
+<div id="rotatePage">please rotate your phone📱</div>
 
-  <!-- LANDSCAPE STAGE (hidden initially) -->
-  <div id="stage">
-    <div class="landscape" id="landscape">
+<!-- Scene 2：image2 -->
+<div id="scene2" class="landscapeForce">
+    <img id="image2" src="image2.jpg">
+</div>
 
-      <!-- Step 2 image2 scene -->
-      <div id="image2Wrap" class="scene" style="z-index:0;">
-        <img id="image2" src="image2.jpg" alt="image2">
-      </div>
+<!-- Scene 3：loading 点阵 -->
+<div id="loading" class="landscapeForce"></div>
 
-      <!-- Loading scene -->
-      <div id="loadingScene" class="scene hidden" style="z-index:3;">
-        <div id="loadingCanvas"></div>
-        <div id="loadingTextLabel">loading...</div>
-      </div>
+<!-- Scene 4：箭头 -->
+<div id="arrowScene" class="landscapeForce">
+    <img id="arrow" src="image3.png">
+</div>
 
-      <!-- Arrow image3 (right side) -->
-      <img id="image3" src="image3.png" alt="arrow" style="z-index:6;">
+<!-- Scene 5：背景 + 气泡 -->
+<div id="scene5" class="landscapeForce">
+    <img id="image1BG" src="image1.jpg">
+</div>
 
-      <!-- image1 background (will slide in) -->
-      <div id="image1bg" style="z-index:0; background-image:url('image1.jpg');"></div>
+<!-- Scene 6：评分 -->
+<div id="ratePage" class="landscapeForce">
+    <div style="margin-top:20vh;">xD</div>
+    <div style="font-size:4vh;margin-top:4vh;">please rate</div>
+    <div id="stars">☆ ☆ ☆ ☆ ☆</div>
+</div>
 
-      <!-- bubbles -->
-      <div id="bubbles" style="z-index:5;"></div>
-
-      <!-- xD & rating overlay -->
-      <div id="finalXDScreen" class="scene hidden" style="z-index:9;">
-        <div id="xDText" style="font-weight:800;">xD</div>
-        <div id="pleaseRate">please rate</div>
-        <div id="stars" aria-label="rating">
-          <span class="star" data-value="1">☆</span>
-          <span class="star" data-value="2">☆</span>
-          <span class="star" data-value="3">☆</span>
-          <span class="star" data-value="4">☆</span>
-          <span class="star" data-value="5">☆</span>
-        </div>
-      </div>
-
-      <!-- final thanks page -->
-      <div id="thanksPage" class="scene hidden" style="z-index:11;">
-        <div style="white-space:pre-line; font-weight:600;">
-thanks for your 5 star
-（knew you would do this xD love you looots
-        </div>
-      </div>
-
-    </div>
-  </div>
+<!-- 最终感谢页 -->
+<div id="thankPage" class="landscapeForce">
+    thanks for your 5 star<br>(knew you would do this xD love you looots)
+</div>
 
 <script>
-(function(){
-  // Configurable timings (in ms) according to your requirements and modifications:
-  const T_ROTATE = 3000; // rotate screen 3s
-  const T_IMAGE2_TOTAL = 9000; // image2 displayed for 9s (modified)
-  const T_IMAGE2_FADE = 1600; // fade/move duration within the 9s
-  const T_LOADING_PREP = 350; // small delay before starting loading animation
-  const PIXEL_APPEAR_INTERVAL = 25; // ms between each image4 dot appearing
-  const LOADING_DOT_REPEAT = 2; // "..." repeat twice (modified)
-  const EMOJI_FALL_COUNT = 12; // number of falling emojis
-  const IMAGE3_SHOW = 2000; // show image3 for 2s
-  const IMAGE3_FADE = 800;
-  const IMAGE1_SLIDE = 1600;
-  const BUBBLE_COUNT = 5;
-  const BUBBLE_INTERVAL = 5000; // each bubble after shown waits 5s (modified)
-  const AFTER_LAST_BUBBLE_PAUSE = 8000; // final pause after last bubble (modified)
-  const XD_SHOW = 3000; // show xD for 3s
-  const STARS_FINAL_REDIRECT_DELAY = 600; // after 5-star click go to thanks page after this ms
+/* ---------------------------------
+   旋转页 → 进入 image2
+-----------------------------------*/
+setTimeout(() => {
+    document.getElementById("rotatePage").style.display = "none";
+    document.getElementById("scene2").style.display = "block";
 
-  // messages / bubbles (as requested)
-  const messages = [
-    "Heyyy Ahmed, happy birthday to you!🥳",
-    "If I could give you something today, it would be a quiet moment where nothing hurts and presses you",
-    "I see how much you’re carrying, and I respect you for that!",
-    "I hope this year brings you more ease so that you can breathe. 🫂",
-    "Remember! You can always be yourself with me! Lots of love!🥰"
-  ];
+    setTimeout(() => {
+        let img2 = document.getElementById("image2");
+        img2.style.opacity = "1";
+        img2.style.transform = "translate(-50%,-50%) scale(1)";
+    }, 300);
 
-  // DOM refs
-  const rotateScreen = document.getElementById('rotateScreen');
-  const stage = document.getElementById('stage');
-  const landscape = document.getElementById('landscape');
-  const image2 = document.getElementById('image2');
-  const image2Wrap = document.getElementById('image2Wrap');
-  const loadingScene = document.getElementById('loadingScene');
-  const loadingCanvas = document.getElementById('loadingCanvas');
-  const loadingLabel = document.getElementById('loadingTextLabel');
-  const image3 = document.getElementById('image3');
-  const image1bg = document.getElementById('image1bg');
-  const bubblesWrap = document.getElementById('bubbles');
-  const finalXDScreen = document.getElementById('finalXDScreen');
-  const pleaseRate = document.getElementById('pleaseRate');
-  const stars = document.getElementById('stars');
-  const thanksPage = document.getElementById('thanksPage');
+    setTimeout(showLoading, 9000);   // image2 停留 9 秒
+}, 3000);
 
-  // Helper to wait
-  const wait = (ms) => new Promise(r => setTimeout(r, ms));
+/* ---------------------------------
+   Scene 3：点阵 LOADING
+-----------------------------------*/
+function showLoading() {
+    document.getElementById("scene2").style.display = "none";
+    const load = document.getElementById("loading");
+    load.style.display = "block";
 
-  // Start sequence
-  async function runSequence(){
-    // 1) show rotate screen for 3s
-    rotateScreen.style.display = 'flex';
-    stage.style.display = 'none';
-    await wait(T_ROTATE);
+    const text = [
+        // 12×12 大点阵，每个字符一组（简化示例）
+        "LOADING"
+    ];
 
-    // hide rotate, show landscape stage (landscape container keeps white background)
-    rotateScreen.style.display = 'none';
-    stage.style.display = 'flex';
+    const dotSize = 30;
+    const spacing = 35;
+    const startX = 20;
+    const startY = 20;
+    let index = 0;
 
-    // ensure landscape visually horizontal: we centered a fixed-aspect box, so present it now
-    // 2) show image2 animation (diagonal from left-bottom to right-top, fade in). total display T_IMAGE2_TOTAL.
-    image2.style.opacity = '0';
-    image2.style.transform = 'translate(-50%, -50%) translate(-40%,40%)';
-    image2Wrap.classList.remove('hidden');
-
-    // start the transition
-    await wait(60);
-    image2.style.transition = `transform ${T_IMAGE2_FADE}ms cubic-bezier(.2,.9,.3,1), opacity ${T_IMAGE2_FADE}ms linear`;
-    image2.style.transform = 'translate(-50%, -50%) translate(0,0)';
-    image2.style.opacity = '1';
-
-    // Wait the total display time (including fade)
-    await wait(T_IMAGE2_TOTAL);
-
-    // 3) loading page
-    image2.style.opacity = '0';
-    // small fadeout
-    await wait(400);
-    image2Wrap.classList.add('hidden');
-    loadingScene.classList.remove('hidden');
-
-    // add falling emojis
-    addFallingEmojis();
-
-    // build dot-matrix "loading..." using many image4.png tiles
-    await wait(T_LOADING_PREP);
-    await buildLoadingDotMatrix();
-
-    // After loading dot-matrix created and the dots animation (repeats) finished, keep it fixed (as per modification).
-    // 4) show image3 on right side for 2s then fade out
-    await wait(400);
-    image3.style.opacity = '1';
-    // show for 2s
-    await wait(IMAGE3_SHOW);
-    image3.style.opacity = '0';
-    await wait(IMAGE3_FADE);
-
-    // 5) slide image1 from right to left to full-screen background
-    // first hide loading scene
-    loadingScene.classList.add('hidden');
-    image1bg.style.transform = 'translateX(0)'; // slide to full
-    // wait for slide to finish
-    await wait(IMAGE1_SLIDE + 200);
-
-    // then create message bubbles one by one
-    await showBubbles();
-
-    // after last bubble and pause, show xD black screen
-    await wait(AFTER_LAST_BUBBLE_PAUSE);
-    // show xD screen
-    finalXDScreen.classList.remove('hidden');
-    // ensure it's fully visible and above others
-    finalXDScreen.style.display = 'flex';
-    // xD on black stays 3s first
-    await wait(XD_SHOW);
-
-    // then show please rate and stars under it
-    pleaseRate.style.display = 'block';
-    stars.style.display = 'block';
-
-    // attach star click handlers
-    attachStarHandlers();
-
-    // Note: final redirect will happen on 5-star click
-  }
-
-  // Create falling emojis on loading scene
-  function addFallingEmojis(){
-    const emojis = ["🎂","🧁","⭐","💛"];
-    const container = loadingScene;
-    const w = loadingScene.clientWidth || 800;
-    for(let i=0;i<EMOJI_FALL_COUNT;i++){
-      const el = document.createElement('div');
-      el.className = 'emoji-fall';
-      el.textContent = emojis[i % emojis.length];
-      el.style.left = Math.round(Math.random() * 90) + '%';
-      const dur = 4000 + Math.round(Math.random()*3000);
-      el.style.animationDuration = dur + 'ms';
-      el.style.animationDelay = (i*150) + 'ms';
-      el.style.opacity = '0.95';
-      loadingScene.appendChild(el);
+    function placeDot(x, y, delay) {
+        let d = document.createElement("div");
+        d.className = "dot";
+        d.style.backgroundImage = "url(image4.png)";
+        d.style.left = x + "px";
+        d.style.top = y + "px";
+        d.style.transitionDelay = delay + "ms";
+        load.appendChild(d);
+        setTimeout(()=> d.style.opacity = 1, 30);
     }
-  }
 
-  // Build loading dot-matrix using canvas pixel sampling to place image4 tiles forming "loading..."
-  async function buildLoadingDotMatrix(){
-    // We'll create a temp canvas to draw text and sample pixels, then create .pixel elements at positions
-    const text = "loading";
-    const dotText = "...";
-    const repeats = LOADING_DOT_REPEAT; // repeat the dots two times after loading text
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const ccw = 900;
-    const cch = 220;
-    canvas.width = ccw;
-    canvas.height = cch;
-    ctx.fillStyle = '#000';
-    ctx.font = 'bold 120px sans-serif';
-    ctx.textBaseline = 'middle';
-    // center main text left side
-    ctx.fillText(text, 40, cch/2 - 6);
-    // draw dots to the right
-    ctx.font = 'bold 120px sans-serif';
-    let dotsX = 40 + ctx.measureText(text).width + 18;
-    // draw the dots repeated visually but we'll animate their appearance separately
-    ctx.fillText(dotText, dotsX, cch/2 - 6);
+    // 简单由大字母的点阵 (此处提供 L O A D I N G 的 12×12 模式)
+    // 为节省篇幅，我提供示例。如果你希望，我能按你要求生成更精致的 16×16 / 20×20 点阵。
 
-    // sample pixels
-    const imageData = ctx.getImageData(0,0,canvas.width,canvas.height);
-    const pixels = [];
-    const step = 10; // sample granularity
-    for(let y=0;y<canvas.height;y+=step){
-      for(let x=0;x<canvas.width;x+=step){
-        const idx = (y*canvas.width + x) * 4;
-        const a = imageData.data[idx+3];
-        if(a > 128){
-          // keep only the left/center area to avoid stray bits
-          // we'll limit x-range so that the word sits nicely
-          if(x > 8 && x < canvas.width - 8){
-            pixels.push({x,y});
-          }
+    const font = {
+        "L":[
+"100000000000",
+"100000000000",
+"100000000000",
+"100000000000",
+"100000000000",
+"100000000000",
+"100000000000",
+"100000000000",
+"100000000000",
+"100000000000",
+"111111111110",
+"111111111110"],
+        "O":[
+"001111111100",
+"011000001110",
+"110000000011",
+"110000000011",
+"110000000011",
+"110000000011",
+"110000000011",
+"110000000011",
+"110000000011",
+"110000000011",
+"011000001110",
+"001111111100"],
+        "A":[
+"000111110000",
+"001100011000",
+"011000001100",
+"110000000110",
+"110000000110",
+"111111111110",
+"111111111110",
+"110000000110",
+"110000000110",
+"110000000110",
+"110000000110",
+"110000000110"],
+        "D":[
+"111111111000",
+"110000001100",
+"110000000110",
+"110000000110",
+"110000000110",
+"110000000110",
+"110000000110",
+"110000000110",
+"110000000110",
+"110000000110",
+"110000001100",
+"111111111000"],
+        "I":[
+"111111111111",
+"000011110000",
+"000011110000",
+"000011110000",
+"000011110000",
+"000011110000",
+"000011110000",
+"000011110000",
+"000011110000",
+"000011110000",
+"111111111111",
+"111111111111"],
+        "N":[
+"110000000011",
+"111000000011",
+"111100000011",
+"110110000011",
+"110011000011",
+"110001100011",
+"110000110011",
+"110000011011",
+"110000001111",
+"110000000111",
+"110000000011",
+"110000000011"],
+        "G":[
+"001111111100",
+"011000001110",
+"110000000011",
+"110000000000",
+"110000000000",
+"110001111111",
+"110001111111",
+"110000000011",
+"110000000011",
+"110000000011",
+"011000001110",
+"001111111100"]
+    };
+
+    let delay = 0;
+    let cursorX = startX;
+
+    for (let ch of text[0]) {
+        let grid = font[ch];
+        for (let r=0; r<12; r++) {
+            for (let c=0; c<12; c++) {
+                if (grid[r][c] === "1") {
+                    placeDot(cursorX + c*spacing, startY + r*spacing, delay);
+                    delay += 30;
+                }
+            }
         }
-      }
+        cursorX += 13*spacing; // 下个字母
     }
 
-    // reduce density to match available space and tile size
-    // create pixel elements positioned inside loadingCanvas
-    loadingCanvas.innerHTML = ''; // clear
-    const bounds = loadingCanvas.getBoundingClientRect();
-    const scaleX = bounds.width / canvas.width;
-    const scaleY = bounds.height / canvas.height;
-    // sort pixels by y (top->bottom) then x (left->right) as user requested
-    pixels.sort((a,b)=> a.y - b.y || a.x - b.x);
-
-    // Limit number of created dots: but keep enough for legibility
-    const maxDots = Math.min(pixels.length, 1000);
-    const used = pixels.slice(0, maxDots);
-
-    // create elements and animate sequentially
-    for(let i=0;i<used.length;i++){
-      const p = used[i];
-      const el = document.createElement('div');
-      el.className = 'pixel';
-      // position relative to loadingCanvas
-      el.style.left = (p.x * scaleX) + 'px';
-      el.style.top = (p.y * scaleY) + 'px';
-      loadingCanvas.appendChild(el);
-      // appear sequentially
-      setTimeout(()=> {
-        el.style.opacity = '1';
-        el.style.transform = 'translateY(0)';
-      }, i * PIXEL_APPEAR_INTERVAL);
-      // final hold (no removal) because "loading出现后固定不动"
-    }
-
-    // Now handle the trailing "..." repeating twice: create three larger pixels for dots to the right
-    // Find measured position for dots in canvas
-    const ctx2 = canvas.getContext('2d');
-    const textW = ctx2.measureText(text).width;
-    const dotBaseX = 40 + textW + 18;
-    const dotPositions = [];
-    for(let d = 0; d < 3; d++){
-      dotPositions.push({x: dotBaseX + d*36, y: canvas.height/2});
-    }
-    // Create visible dot placeholders and animate their fill cycles
-    const dotEls = [];
-    for(let i=0;i<3;i++){
-      const el = document.createElement('div');
-      el.className = 'pixel';
-      el.style.width = '26px';
-      el.style.height = '26px';
-      el.style.left = (dotPositions[i].x * scaleX) + 'px';
-      el.style.top = ((dotPositions[i].y - 12) * scaleY) + 'px';
-      el.style.opacity = '0.0';
-      loadingCanvas.appendChild(el);
-      dotEls.push(el);
-    }
-
-    // Animating the dots: show them as "..." cycles repeats times
-    // Each cycle: show dot1, dot2, dot3 sequentially, then hide, repeat
-    const dotCycleInterval = 420; // ms between dot appearances
-    let cycleCount = 0;
-    const totalCycles = repeats;
-    await new Promise(resolve => {
-      function runCycle(){
-        let base = used.length * PIXEL_APPEAR_INTERVAL + 120;
-        // sequentially light dots
-        dotEls.forEach((el, idx) => {
-          setTimeout(()=> { el.style.opacity = '1'; el.style.transform = 'translateY(0)'; }, base + idx*dotCycleInterval);
-        });
-        // then hide them after a short gap
-        setTimeout(()=> {
-          dotEls.forEach(el => { el.style.opacity = '0.0'; });
-        }, base + 3*dotCycleInterval + 240);
-
-        cycleCount++;
-        if(cycleCount < totalCycles){
-          // schedule next cycle
-          setTimeout(runCycle, base + 3*dotCycleInterval + 380);
-        } else {
-          // final show for a small duration then fix them visible (since "loading后面的'…'重复出现两次" then fixed)
-          setTimeout(()=> {
-            dotEls.forEach((el, idx) => {
-              setTimeout(()=> { el.style.opacity = '1'; el.style.transform = 'translateY(0)'; }, idx*120);
-            });
-            // wait a small moment to let user see them fixed
-            setTimeout(resolve, 600);
-          }, base + 3*dotCycleInterval + 180);
+    // “…” 两轮
+    let dotStartX = cursorX + 30;
+    for (let round = 0; round < 2; round++) {
+        for (let i=0;i<3;i++){
+            placeDot(dotStartX + i*spacing, startY + 6*spacing, delay);
+            delay += 100;
         }
-      }
-      // start cycles after initial pixels done
-      setTimeout(runCycle, Math.max(300, used.length * PIXEL_APPEAR_INTERVAL + 60));
+    }
+
+    // 添加飘落 emoji
+    function addEmoji() {
+        const e = document.createElement("div");
+        e.className = "fallEmoji";
+        const arr = ["🎂","🧁","⭐","💛"];
+        e.innerText = arr[Math.floor(Math.random()*arr.length)];
+        e.style.left = Math.random()*80 + "vh";
+        e.style.top = "-10vh";
+        load.appendChild(e);
+        setTimeout(()=> e.remove(), 4000);
+    }
+    setInterval(addEmoji,400);
+
+    setTimeout(showArrow, delay + 2000);
+}
+
+/* ---------------------------------
+   Scene 4：箭头出现
+-----------------------------------*/
+function showArrow() {
+    document.getElementById("loading").style.display="none";
+    const scene = document.getElementById("arrowScene");
+    scene.style.display="block";
+    setTimeout(()=>{
+        document.getElementById("arrow").style.opacity="1";
+    },100);
+
+    setTimeout(()=>{
+        document.getElementById("arrow").style.opacity="0";
+    },2000);
+
+    setTimeout(showScene5, 4000);
+}
+
+/* ---------------------------------
+   Scene 5：背景 + 气泡
+-----------------------------------*/
+function showScene5() {
+    document.getElementById("arrowScene").style.display="none";
+    const s = document.getElementById("scene5");
+    s.style.display="block";
+
+    const msgs = [
+"Heyyy Ahmed, happy birthday to you!🥳",
+"If I could give you something today, it would be a quiet moment where nothing hurts and presses you",
+"I see how much you’re carrying, and I respect you for that!",
+"I hope this year brings you more ease so that you can breathe. 🫂",
+"Remember! You can always be yourself with me! Lots of love!🥰"
+    ];
+
+    let y = 30;
+    let delay = 0;
+
+    msgs.forEach((t,i)=>{
+        setTimeout(()=>{
+            let b = document.createElement("div");
+            b.className = "msgBubble";
+            b.style.top = y+"vh";
+            b.innerHTML = t;
+            s.appendChild(b);
+            setTimeout(()=> b.style.opacity=1,50);
+            y += 15;
+        }, delay);
+        delay += 5000;
     });
 
-    // keep the loadingScene on-screen (per modification "loading出现后固定不动")
-    return;
-  }
+    setTimeout(showRate, delay + 8000);
+}
 
-  async function showBubbles(){
-    bubblesWrap.innerHTML = '';
-    for(let i=0;i<messages.length;i++){
-      const msg = messages[i];
-      const el = document.createElement('div');
-      el.className = 'bubble ' + ((i%2===0)?'white':'yellow');
-      el.textContent = msg;
-      bubblesWrap.appendChild(el);
-      // slight delay then show
-      await wait(120);
-      el.classList.add('show');
-      // after shown, wait BUBBLE_INTERVAL (modified 5s)
-      await wait(BUBBLE_INTERVAL);
-    }
-    // after all generated, we will wait AFTER_LAST_BUBBLE_PAUSE in the main flow
-  }
+/* ---------------------------------
+   Scene 6：评分
+-----------------------------------*/
+function showRate() {
+    document.getElementById("scene5").style.display = "none";
+    document.getElementById("ratePage").style.display = "block";
 
-  function attachStarHandlers(){
-    const starEls = Array.from(document.querySelectorAll('#stars .star'));
-    starEls.forEach(s => {
-      s.addEventListener('click', () => {
-        const val = parseInt(s.dataset.value || '1', 10);
-        fillStars(val);
-        if(val === 5){
-          // show filled then go to final thanks after short delay
-          setTimeout(()=> {
-            finalXDScreen.classList.add('hidden');
-            thanksPage.classList.remove('hidden');
-            thanksPage.style.display = 'flex';
-          }, STARS_FINAL_REDIRECT_DELAY);
+    const stars = document.querySelectorAll("#stars .star");
+}
+
+document.getElementById("stars").innerHTML = "☆ ☆ ☆ ☆ ☆"
+    .split(" ")
+    .map((s,i)=>`<span class="star" data-i="${i}">${s}</span>`).join("");
+
+document.querySelectorAll(".star").forEach(st=>{
+    st.addEventListener("click",()=>{
+        let n = Number(st.dataset.i)+1;
+        document.getElementById("stars").innerHTML =
+            "⭐".repeat(n) + "☆".repeat(5-n);
+        if (n===5) {
+            setTimeout(showThanks, 800);
         }
-      });
-      s.addEventListener('mouseover', () => {
-        const v = parseInt(s.dataset.value,10);
-        fillStars(v);
-      });
-      s.addEventListener('mouseout', () => {
-        // reset to current selected if any
-        const filled = document.querySelectorAll('#stars .star.filled').length;
-        fillStars(filled);
-      });
     });
-  }
-  function fillStars(count){
-    const starEls = Array.from(document.querySelectorAll('#stars .star'));
-    starEls.forEach((st, idx) => {
-      if(idx < count){
-        st.textContent = '⭐';
-        st.classList.add('filled');
-      } else {
-        st.textContent = '☆';
-        st.classList.remove('filled');
-      }
-    });
-  }
+});
 
-  // kick off sequence
-  runSequence();
-
-  // small safety: if images are missing, continue gracefully (console warnings)
-  window.addEventListener('error', (e)=> {
-    console.warn('Resource error:', e);
-  });
-
-})();
+/* ---------------------------------
+   最终感谢页
+-----------------------------------*/
+function showThanks() {
+    document.getElementById("ratePage").style.display = "none";
+    document.getElementById("thankPage").style.display = "flex";
+}
 </script>
-
 </body>
 </html>
